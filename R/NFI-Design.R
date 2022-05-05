@@ -46,7 +46,7 @@ sf_country <- sf_district %>% summarise()
 
 offset <- st_bbox(sf_country)[c("xmin", "ymin")] + c(1000, 1000)
 
-sf_g <- st_make_grid(sf_country, cellsize = c(8000, 8000), what = "polygons", offset = offset) %>%
+sf_g <- st_make_grid(sf_country, cellsize = c(10000, 10000), what = "polygons", offset = offset) %>%
   st_intersection(sf_country)
 
 ## + JICA land cover
