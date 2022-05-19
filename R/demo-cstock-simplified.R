@@ -98,21 +98,29 @@ tree_ba_corr <- tree_ba %>%
 
 ## Add wood density
 tree_wd <- tree_ba_corr %>%
-  left_join()
+  mutate(
+    tree_wd = if_else(is.na(tree_wd), 0.57, tree_wd)
+  )
+
+summary(tree_wd$tree_wd)
 
 
 ## Calculate tree AGB
-tree_agb <- tree_ba_corr %>%
+tree_agb <- tree_wd %>%
   mutate(
-    agb_tree = case_when(                       ## <- case_when() replaces a lot of embedded ifelse() statements
-      lc_class == "EF"  ~ 0.3112 * dbh^2.2331,
-      lc_class == "DD"  ~ 0.2137 * dbh^2.2575,
-      lc_class == "MDF" ~ 0.523081 * dbh^2,
-      lc_class == "CF"  ~ 0.1277 * dbh^2.3944,
-      lc_class == "MCB" ~ 0.1277 * dbh^2.3944,
-      TRUE ~ NA_real_   # <- assigns NA to any case not covered by the conditions above
+    tree_agb1 = 0.0673 * (tree_wd * tree_dbh^2 * tree_height_top)^0.976,
+    tree_agb2 = exp(-1.803 - 0.976 * envir_stress + 0.976 * log(tree_wd) 
+                    + 2.673 * log(tree_dbh) - 0.0299 * (log(tree_dbh))^2)
     )
-  ) 
+
+ggplot(tree_agb) +
+  geom_point(aes(x = tree_dbh, y = tree_agb1, color = plot_id), shape = 1) +
+  geom_point(aes(x = tree_dbh, y = tree_agb2, color = plot_id), shape = 3) +
+  facet_wrap(~site)
+
+
+
+
 
 
 ## With tidyverse all these operations can be condensed to one sequence of actions:
