@@ -80,7 +80,6 @@ ggplot(tree_ba) +
   geom_line(aes(x = tree_dbh, y = tree_height_model, color = plot_id, linetype = site)) +
   scale_shape_manual(values = c(1, 3))
 
-
 ggplot(tree_ba) +
   geom_point(aes(x = tree_dbh, y = tree_height_model, color = plot_id), shape = 1) +
   geom_point(aes(x = tree_dbh, y = tree_height_top, color = plot_id), shape = 2) +
@@ -117,9 +116,6 @@ ggplot(tree_agb) +
   geom_point(aes(x = tree_dbh, y = tree_agb1, color = plot_id), shape = 1) +
   geom_point(aes(x = tree_dbh, y = tree_agb2, color = plot_id), shape = 3) +
   facet_wrap(~site)
-
-
-
 
 
 
