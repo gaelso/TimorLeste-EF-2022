@@ -15,6 +15,7 @@ script_path <- "R-NFI-design/R-NFI-design-scripts"
 
 source(file.path(script_path, "00-libraries.R"))
 
+source(file.path(script_path, "00-load-spatial.R"))
 
 
 

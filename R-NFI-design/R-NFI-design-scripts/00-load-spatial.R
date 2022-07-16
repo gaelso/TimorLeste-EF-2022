@@ -50,6 +50,7 @@ rs_jica <- classify(rs_jica_init, jica_code)
 levels(rs_jica) <- jica_lc$lc
 names(rs_jica) <- "lc"
 plot(rs_jica, col=jica_lc$hex)
+plot(sf_country, add=T)
 summary(rs_jica)
 cats(rs_jica)
 rs_jica
@@ -57,3 +58,23 @@ rs_jica
 rs_jica2 <- st_as_stars(rs_jica)
 
 rs_jica3 <- as.data.frame(rs_jica, xy = TRUE) %>% na.omit()
+
+
+## + Avitabile 2016 Biomass map ----
+
+rs_agb_init <- terra::rast("data/GIS/Avitabile_AGB_Map/Avitabile_AGB_Map.tif")
+summary(rs_agb_init)
+plot(rs_agb_init)
+levels(rs_agb_init)
+cats(rs_agb_init)
+
+rs_agb_prepa1 <- terra::crop(rs_agb_init, ext(124, 128, -10, -8))
+plot(rs_agb_prepa1)
+
+rs_agb_prepa2 <- terra::project(rs_agb_prepa1, "EPSG:32751", method = "near")
+plot(rs_agb_prepa2)
+
+rs_agb <- mask(rs_agb_prepa2, vect(sf_country))
+plot(rs_agb)
+plot(sf_country, add=T)
+

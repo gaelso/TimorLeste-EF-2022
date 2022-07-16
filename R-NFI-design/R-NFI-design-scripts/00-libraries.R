@@ -11,9 +11,10 @@
 library(sf)
 library(terra)
 library(stars)
-library(tidyverse)
 library(tmap)
 library(ggspatial)
+
+library(tidyverse)
 
 ggplot2::theme_set(theme_bw())
 
