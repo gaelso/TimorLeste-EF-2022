@@ -1,9 +1,6 @@
 
 ## +++ +++
 ## NFI design optimization scripts for Timor Leste
-## Gael Sola, FAO
-## June 2022
-## contact: gaelsola@hotmail.fr
 ## +++ +++
 
 
@@ -55,14 +52,19 @@ summary(rs_jica)
 cats(rs_jica)
 rs_jica
 
-rs_jica2 <- st_as_stars(rs_jica)
+#rs_jica2 <- st_as_stars(rs_jica)
 
-rs_jica3 <- as.data.frame(rs_jica, xy = TRUE) %>% na.omit()
+df_jica <- as.data.frame(rs_jica, xy = TRUE) %>% 
+  as_tibble() %>%
+  na.omit()
+
 
 
 ## + Avitabile 2016 Biomass map ----
 
 rs_agb_init <- terra::rast("data/GIS/Avitabile_AGB_Map/Avitabile_AGB_Map.tif")
+rs_agb_init
+names(rs_agb_init) <- "agb_avitabile"
 summary(rs_agb_init)
 plot(rs_agb_init)
 levels(rs_agb_init)
@@ -74,7 +76,36 @@ plot(rs_agb_prepa1)
 rs_agb_prepa2 <- terra::project(rs_agb_prepa1, "EPSG:32751", method = "near")
 plot(rs_agb_prepa2)
 
-rs_agb <- mask(rs_agb_prepa2, vect(sf_country))
+rs_agb_prepa3 <- mask(rs_agb_prepa2, vect(sf_country))
+plot(rs_agb_prepa3)
+plot(sf_country, add=T)
+
+rs_agb <- crop(rs_agb_prepa3, rs_jica)
 plot(rs_agb)
 plot(sf_country, add=T)
 
+df_agb <- as.data.frame(rs_agb, xy = TRUE) %>% 
+  as_tibble() %>%
+  na.omit()
+
+rs_agb30 <- resample(rs_agb, rs_jica) 
+
+df_agb30 <- as.data.frame(rs_agb30, xy = TRUE) %>% 
+  as_tibble() %>%
+  na.omit()
+
+rs_jica100 <- resample(rs_jica, rs_agb)
+
+df_jica100 <- as.data.frame(rs_jica100, xy = TRUE) %>% 
+  as_tibble() %>%
+  na.omit()
+
+
+## + Checks ----
+
+rs_jica
+rs_agb
+rs_agb30
+
+plot(rs_jica)
+plot(rs_agb)
