@@ -27,12 +27,12 @@ jica_code <- tibble(
   new_code = c(0, 1, 9, 3, 4, 5, 6, 8, 7, 2)
 )
 
-jica_lc <- tibble(
-  lc = c("Dense forest", "Sparse forest", "Unknown", "Grassland", "Bareland", 
-         "Inland Water", "Rice field", "Dry field", "Settlement", "Very sparse forest"),
-  hex = c("#009900", "#00ff00", "#ff0000", "#ffccff", "#cc00ff", 
-          "#0033ff", "#cccc00", "#ff9933", "#330000", "#99ff99")
-)
+# jica_lc <- tibble(
+#   lc = c("Dense forest", "Sparse forest", "Unknown", "Grassland", "Bareland", 
+#          "Inland Water", "Rice field", "Dry field", "Settlement", "Very sparse forest"),
+#   hex = c("#009900", "#00ff00", "#ff0000", "#ffccff", "#cc00ff", 
+#           "#0033ff", "#cccc00", "#ff9933", "#330000", "#99ff99")
+# )
 
 jica_lc <- tibble(
   new_code = c(0, 1, 9, 3, 4, 5, 6, 8, 7, 2),
@@ -88,11 +88,11 @@ df_agb <- as.data.frame(rs_agb, xy = TRUE) %>%
   as_tibble() %>%
   na.omit()
 
-rs_agb30 <- resample(rs_agb, rs_jica) 
-
-df_agb30 <- as.data.frame(rs_agb30, xy = TRUE) %>% 
-  as_tibble() %>%
-  na.omit()
+# rs_agb30 <- resample(rs_agb, rs_jica) 
+# 
+# df_agb30 <- as.data.frame(rs_agb30, xy = TRUE) %>% 
+#   as_tibble() %>%
+#   na.omit()
 
 rs_jica100 <- resample(rs_jica, rs_agb)
 
@@ -105,7 +105,18 @@ df_jica100 <- as.data.frame(rs_jica100, xy = TRUE) %>%
 
 rs_jica
 rs_agb
-rs_agb30
+
 
 plot(rs_jica)
 plot(rs_agb)
+
+
+
+
+
+## Remove objects ----
+
+rm(rs_jica_init, rs_agb_init, rs_agb_prepa1, rs_agb_prepa2, rs_agb_prepa3)
+
+dev.off()
+

@@ -1,0 +1,90 @@
+
+## +++ +++
+## NFI design optimization scripts for Timor Leste
+## +++ +++
+
+
+## Make NFI grids ----
+
+## Build grid and check number of forest plots if a LC raster file is provided
+make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = rs_jica){
+  
+  ## grid
+  sf_grid <- st_make_grid(
+    x = sf_country, 
+    cellsize = c(spacing_km * 1000, spacing_km * 1000), 
+    what = "polygons", 
+    square = square, 
+    offset = offset
+  ) %>%
+    st_as_sf()
+  
+  sf_points <- st_make_grid(
+    x = sf_country, 
+    cellsize = c(spacing_km * 1000, spacing_km * 1000),  
+    what = "centers", 
+    square = square, 
+    offset = offset
+  ) %>%
+    st_as_sf()
+  
+  ## intersect actual country boundaries
+  sf_points2 <- sf_points[sf_country, ] 
+  
+  sf_grid2 <- sf_grid[sf_points2, ]
+  
+  ## Graph
+  gr_grid <- ggplot() +
+    geom_sf(data = sf_country, fill = NA, size = 1) +
+    geom_sf(data = sf_grid2, fill = NA, color = "red") +
+    geom_sf(data = sf_points2, size = 0.5)
+  
+  
+  ## Add Land Cover and calculate number of plots per LC class
+  if(!is.null(raster)) {
+    
+    sf_plot <- terra::extract(raster, vect(sf_points2))
+    
+    sf_points3 <- sf_points2 %>%
+      bind_cols(sf_plot) %>%
+      filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest"))
+    
+    sf_grid3 <- sf_grid2 %>%
+      bind_cols(sf_plot) %>%
+      filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest"))
+    
+    n_plot <- sf_plot %>%
+      as_tibble() %>%
+      group_by(lc) %>%
+      summarise(n = n())
+    
+    n_plot_forest <- sf_plot %>%
+      as_tibble() %>%
+      filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest")) %>%
+      summarise(n = n())
+    
+    gr_grid2 <- ggplot() +
+      geom_sf(data = sf_country, fill = NA, size = 1) +
+      geom_sf(data = sf_grid3, aes(fill = lc), color = NA) +
+      geom_sf(data = sf_grid2, fill = NA, color = "red") +
+      labs(fill = NULL) +
+      theme(legend.position = "bottom")
+    
+  }
+  
+  if (is.null(raster)) {
+    
+    list(grid = sf_grid, points = sf_points, graph = gr_grid) 
+    
+  } else {
+    
+    list(
+      grid = sf_grid, points = sf_points, graph = gr_grid, plot = sf_plot, 
+      n_plot = n_plot, n_plot_forest = n_plot_forest, gr_forest = gr_grid2
+    )
+    
+  } ## END if
+  
+} ## END function
+
+
