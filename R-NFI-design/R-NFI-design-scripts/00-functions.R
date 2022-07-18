@@ -7,7 +7,7 @@
 ## Make NFI grids ----
 
 ## Build grid and check number of forest plots if a LC raster file is provided
-make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = rs_jica){
+make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = rs_jica, forest_classes = NULL, forest_colors = NULL){
   
   ## grid
   sf_grid <- st_make_grid(
@@ -47,28 +47,40 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
     
     sf_points3 <- sf_points2 %>%
       bind_cols(sf_plot) %>%
-      filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest"))
+      filter(lc %in% forest_classes)
     
     sf_grid3 <- sf_grid2 %>%
       bind_cols(sf_plot) %>%
-      filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest"))
+      filter(lc %in% forest_classes)
     
     n_plot <- sf_plot %>%
       as_tibble() %>%
       group_by(lc) %>%
       summarise(n = n())
     
-    n_plot_forest <- sf_plot %>%
+    n_plot_forest <- sf_points3 %>%
       as_tibble() %>%
-      filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest")) %>%
       summarise(n = n())
+    
     
     gr_grid2 <- ggplot() +
       geom_sf(data = sf_country, fill = NA, size = 1) +
       geom_sf(data = sf_grid3, aes(fill = lc), color = NA) +
-      geom_sf(data = sf_grid2, fill = NA, color = "red") +
+      geom_sf(data = sf_grid2, fill = NA, color = "darkorange") +
       labs(fill = NULL) +
       theme(legend.position = "bottom")
+    
+    if(is.null(forest_colors)) {
+      
+      gr_forest <- gr_grid2 +
+        scale_color_viridis_d()
+      
+    } else {
+      
+      gr_forest <- gr_grid2 +
+        scale_fill_manual(values = forest_colors)
+      
+    }
     
   }
   
@@ -80,7 +92,7 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
     
     list(
       grid = sf_grid, points = sf_points, graph = gr_grid, plot = sf_plot, 
-      n_plot = n_plot, n_plot_forest = n_plot_forest, gr_forest = gr_grid2
+      n_plot = n_plot, n_plot_forest = n_plot_forest, gr_forest = gr_forest
     )
     
   } ## END if

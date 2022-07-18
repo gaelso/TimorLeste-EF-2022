@@ -81,23 +81,27 @@ nu_1=rep(0.0014,no_strata)#h/m
 tp_1<-c(5)
 
 
-#READ SHAPEFILE
-library(rgdal)
-library(rgeos)
-library(raster)
-# File in FAO laptop
-#lr_border <- readOGR(dsn="C:/Users/garciaperezj/Desktop/Liberia/LiberiaNoMangroves/Liberia/Liberia_shp_witout_mangrove.shp")
-# File in Javier laptop
-lr_border <- readOGR(dsn="C:/Users/javier/Desktop/Collect/Liberia_March2018/LiberiaNoMangroves/Liberia/Liberia_shp_witout_mangrove.shp")
-## We need units in m. Project with EPSG for Liberia obtained from https://epsg.io/
-## Google "liberia utm zone epgs" and go to the first page in epsg.io. Result:32629
-lr_transformed <- spTransform(lr_border, CRS("+init=epsg:32629"))
-area_ha<-gArea(lr_transformed)/10000#in ha
-area_ha_mangrove<-10738.13
-proj4string(lr_transformed)
-area_ha
-lib_area<-area_ha+area_ha_mangrove
-plot(lr_border)
+# #READ SHAPEFILE
+# library(rgdal)
+# library(rgeos)
+# library(raster)
+# # File in FAO laptop
+# #lr_border <- readOGR(dsn="C:/Users/garciaperezj/Desktop/Liberia/LiberiaNoMangroves/Liberia/Liberia_shp_witout_mangrove.shp")
+# # File in Javier laptop
+# #lr_border <- readOGR(dsn="C:/Users/javier/Desktop/Collect/Liberia_March2018/LiberiaNoMangroves/Liberia/Liberia_shp_witout_mangrove.shp")
+# lr_border <- readOGR(dsn="data/javier/LiberiaNoMangroves/Liberia/Liberia_shp_witout_mangrove.shp")
+# ## We need units in m. Project with EPSG for Liberia obtained from https://epsg.io/
+# ## Google "liberia utm zone epgs" and go to the first page in epsg.io. Result:32629
+# lr_transformed <- spTransform(lr_border, CRS("+init=epsg:32629"))
+# #area_ha<-gArea(lr_transformed)/10000#in ha
+# area_ha<-sf::st_area(st_as_sf(lr_transformed))
+# area_ha_mangrove<-10738.13
+# proj4string(lr_transformed)
+# area_ha
+# lib_area<-as.numeric(sum(area_ha)) /100^2  + area_ha_mangrove
+# plot(lr_border)
+
+lib_area <- 9587189
 
 ## Liberia 1 strata:Avitabile 
 # Strata: Forest Management Concessions(100 x 100 m),# rest of country (100 x 100 m)
@@ -113,35 +117,36 @@ CV_1A_plot=scale_CV(pix_area,plot_area,CV_1A,0.5)   # CV (%) per ha in plot FMC
 Sh_1A_plot=scale_stdev(pix_area,plot_area,Sh_1A,0.5)  # stdev per ha in plot FMC
 CV_1A;CV_1A_plot;#comparing CV's
 Sh_1A;Sh_1A_plot #comparing Sh's
-############################################################################
-#METHOD 1: samplingbook: 
-###NOT GOOD, COZ ONE HAS TO FIX THE TOTAL NUMBER OF PLOTS!!!##################
-############################################################################
-## #Find preliminary sample size. First input defines 10% error precision as 10% of BIOMASS
-##ssmE<-sample.size.mean(0.1*mean(populationS1)/(S1/S2),sd(populationS1)/(S1/S2),length(populationS2),level=0.95)#Sample size needed: 135
-#2nd iteration modifying sample size df
-##ssmE<-sample.size.mean(0.1*mean(populationS1)/(S1/S2),sd(populationS1)/(S1/S2),length(populationS2),level=0.95)#Sample size needed: 133
-##ssmE$n#[1] 141
-library(samplingbook)
-ssize_1A<-NA
-for (i in 1:length(Nh_1A)){
-  kk<-sample.size.mean(e=(0.1*AGB_1A_plot[i]),S=Sh_1A_plot[i],N=Nh_1A[i]/plot_area,level=0.9)#e= half width of confidence interval
-  ssize_1A[i]<-kk$n
-}
-ssize_1A;#[1]  356
-n_init<-ssize_1A
-T_1<-Cost_plot_hours(n0=n_init,Nh=Nh_1A,AGB=AGB_1A,subplotsize=subplot_area,n_subplots=no_subplots,d_subplots=dist_sub,c=c_1,v=v_1,rho=rho_1,nu=nu_1,tp=tp_1) 
-T_1
 
-#Calculate total time for inventory
-n_teams<-6
-n_days_month<-20
-n_hours_day<-8
-n_days_week<-5
-n_init*T_1#number of hours or whole inventory for one team
-n_init*T_1/n_teams#number of hours or whole inventory for six team
-n_init*T_1/(n_teams*n_hours_day)#number of days or whole inventory for six team
-n_init*T_1/(n_teams*n_hours_day*n_days_month)#number of months or whole inventory for six team
+# ############################################################################
+# #METHOD 1: samplingbook: 
+# ###NOT GOOD, COZ ONE HAS TO FIX THE TOTAL NUMBER OF PLOTS!!!##################
+# ############################################################################
+# ## #Find preliminary sample size. First input defines 10% error precision as 10% of BIOMASS
+# ##ssmE<-sample.size.mean(0.1*mean(populationS1)/(S1/S2),sd(populationS1)/(S1/S2),length(populationS2),level=0.95)#Sample size needed: 135
+# #2nd iteration modifying sample size df
+# ##ssmE<-sample.size.mean(0.1*mean(populationS1)/(S1/S2),sd(populationS1)/(S1/S2),length(populationS2),level=0.95)#Sample size needed: 133
+# ##ssmE$n#[1] 141
+# library(samplingbook)
+# ssize_1A<-NA
+# for (i in 1:length(Nh_1A)){
+#   kk<-sample.size.mean(e=(0.1*AGB_1A_plot[i]),S=Sh_1A_plot[i],N=Nh_1A[i]/plot_area,level=0.9)#e= half width of confidence interval
+#   ssize_1A[i]<-kk$n
+# }
+# ssize_1A;#[1]  356
+# n_init<-ssize_1A
+# T_1<-Cost_plot_hours(n0=n_init,Nh=Nh_1A,AGB=AGB_1A,subplotsize=subplot_area,n_subplots=no_subplots,d_subplots=dist_sub,c=c_1,v=v_1,rho=rho_1,nu=nu_1,tp=tp_1) 
+# T_1
+# 
+# #Calculate total time for inventory
+# n_teams<-6
+# n_days_month<-20
+# n_hours_day<-8
+# n_days_week<-5
+# n_init*T_1#number of hours or whole inventory for one team
+# n_init*T_1/n_teams#number of hours or whole inventory for six team
+# n_init*T_1/(n_teams*n_hours_day)#number of days or whole inventory for six team
+# n_init*T_1/(n_teams*n_hours_day*n_days_month)#number of months or whole inventory for six team
 
 
 #METHOD 4: PracTools 

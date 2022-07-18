@@ -4,7 +4,7 @@
 ## +++ +++
 
 
-## Sampling Characteristics ----
+## + Define sampling characteristics ----
 
 ## Sampling design options: systematic sampling
 ## Multi-stages: (TBD, initially simple stage)
@@ -13,9 +13,9 @@
 
 
 
-## Sampling size ----
+## + Determine sampling size ----
 
-## + Calc AGB CV based on Avitabile 2016 map ----
+## + + Calc AGB CV based on Avitabile 2016 map ----
 
 ## Combine land use classes and agb raster data
 agb_group <- df_jica100 %>%
@@ -53,20 +53,22 @@ agb_class
 
 
 
-## + Calc sampling size ----
+## + + Calc sampling size ----
 
-## Random and systematic designs
-n_plot05 <- round(((agb_tot$agb_sd / agb_tot$agb_mean * 100) * 1.96 / 5)^2)
+## Number of plots in random and systematic designs
+
+## 5% desired precision
+n_plot05 <- round(((agb_tot$agb_sd / agb_tot$agb_mean * 100) * qt(.975, df=Inf) / 5)^2)
 n_plot05
 
-n_plot10 <- round(((agb_tot$agb_sd / agb_tot$agb_mean * 100) * 1.96 / 10)^2)
-n_plot10  
+## 10% desired precision
+n_plot10 <- round(((agb_tot$agb_sd / agb_tot$agb_mean * 100) * qt(.95, df=Inf) / 10)^2)
+n_plot10
 
 ## Country area in km^2 (JICA map res = 30x30 m)
 area_country <- round(nrow(df_jica) * 30^2 / 1000^2, 0)
 area_country
 
-  
 ## Calc area of forest in km^2 (JICA map res = 30x30 m)
 area_forest <- df_jica %>%
   filter(lc %in% c("Dense forest", "Sparse forest", "Very sparse forest")) %>%
@@ -75,6 +77,7 @@ area_forest <- df_jica %>%
   pull(area)
 area_forest  
 
+## Approximate grid spacing to reach n_plot
 grid_spacing <- round(sqrt(area_forest / n_plot10), 3)
 grid_spacing
 
@@ -83,11 +86,11 @@ grid_spacing
 
 
 
-## NFI Grid ----
+## + Make NFI Grid ----
 
 ## Spacing value to be tested and confirmed with number of plots in forest land
 
-## + Offset ----
+## ++ Define random offset ----
 
 set.seed(10)
 x_init <- sample(1:1000, 1)
@@ -97,18 +100,39 @@ offset <- st_bbox(sf_country)[c("xmin", "ymin")] + c(x_init, y_init)
 
 
 
-## + Test grids 4, 6 and 8 km ---
+## ++ Test grids 4, 6 and 8 km ---
 
-sf_grid4 <- make_grid(spacing_km = 4, offset = offset, square = F, raster = rs_jica)
+sf_grid4 <- make_grid(
+  spacing_km = 4, 
+  offset = offset, 
+  square = F, 
+  raster = rs_jica,
+  forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
+  forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
+  )
 sf_grid4$gr_forest
 sf_grid4$n_plot_forest
 
 
-sf_grid6 <- make_grid(spacing_km = 6, offset = offset, square = F, raster = rs_jica)
+sf_grid6 <- make_grid(
+  spacing_km = 6, 
+  offset = offset, 
+  square = F, 
+  raster = rs_jica,
+  forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
+  forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
+  )
 sf_grid6$gr_forest
 sf_grid6$n_plot_forest
 
-sf_grid8 <- make_grid(spacing_km = 8, offset = offset, square = F, raster = rs_jica)
+sf_grid8 <- make_grid(
+  spacing_km = 8, 
+  offset = offset, 
+  square = F, 
+  raster = rs_jica,
+  forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
+  forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
+  )
 sf_grid8$gr_forest
 sf_grid8$n_plot_forest
 

@@ -11,6 +11,8 @@ library(stars)
 library(tmap)
 library(ggspatial)
 
+library(PracTools)
+
 library(tidyverse)
 
 ggplot2::theme_set(theme_bw())
