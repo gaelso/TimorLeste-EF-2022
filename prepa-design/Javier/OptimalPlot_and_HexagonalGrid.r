@@ -54,7 +54,7 @@ Cost_plot_hours<-function(n0,Nh,AGB,subplotsize,n_subplots,d_subplots,c=NULL,v=N
 
 ## INITIALIZATION PARAMETERS 
 ## simple Zeide's (1980) approach
-pix_area= 1     #ha. of pixel in Avitabile's biomass map
+pix_area= 100     #ha. of pixel in Avitabile's biomass map
 #subplot_rad= 12.62# radius in m. of subplot 
 subplot_rad=15
 no_subplots=4   # no. subplots in previous inventories
@@ -113,7 +113,7 @@ CV_1A=Sh_1A/AGB_1A*100
 #Scale CV and std dev. at cluster(plot) level. Assumes larger circle of 15 m radius
 #AGB_2A_plotnew<-AGB_2A*plotnew_size
 AGB_1A_plot<-AGB_1A*plot_area
-CV_1A_plot=scale_CV(pix_area,plot_area,CV_1A,0.5)   # CV (%) per ha in plot FMC
+CV_1A_plot=scale_CV(a_ref = pix_area,a_new = plot_area,CV_ref = CV_1A,expon = 0.5)   # CV (%) per ha in plot FMC
 Sh_1A_plot=scale_stdev(pix_area,plot_area,Sh_1A,0.5)  # stdev per ha in plot FMC
 CV_1A;CV_1A_plot;#comparing CV's
 Sh_1A;Sh_1A_plot #comparing Sh's

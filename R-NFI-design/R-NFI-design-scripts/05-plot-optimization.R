@@ -4,7 +4,8 @@
 ## +++ +++
 
 
-## Plot optimization based on Practools::strAlloc. Input variables are:
+## Plot optimization based on Practools::strAlloc().
+## Input variables are:
 ## - n.tot  fixed total sample size
 ## - Nh	    vector of population stratum sizes (N_h) or pop stratum proportions (W_h)
 ## - Sh	    stratum unit standard deviations (S_h), required unless alloc = "prop"
@@ -16,7 +17,10 @@
 ## - alloc  type of allocation; must be one of "prop", "neyman", "totcost", "totvar"
 
 
-## + Fixed plot design ----
+
+## + Function parameters ----
+
+## + + Initial plot design ----
 
 design_elements <- tibble(
   subplot_radius = 17.84,
@@ -29,13 +33,15 @@ design_elements <- tibble(
 
 
 
-## + Function parameters ----
+## + + Parameters based on biomass data ----
+
+## AGB data from Avitabile 2016 biomass map
 
 ## AGB map resolution as reference area in ha
 pix_area <- terra::res(rs_agb)[1]^2 / 100^2
 
-alloc_param <- tibble(
-  Nh       = area_country / design_elements$plot_area,
+param_ABG <- tibble(
+  Nh   = area_country / design_elements$plot_area,
   AGB  = agb_tot$agb_mean,
   Sh   = agb_tot$agb_sd,
   CV   = Sh / AGB * 100
@@ -46,6 +52,32 @@ alloc_param <- tibble(
     CV_plot  = CV * (pix_area / design_elements$plot_area)^0.5,
     CV_plot2 = Sh_plot / AGB_plot
     )
+
+
+
+## + + Cost calculation ----
+
+## Cost is calculated in time required for tree measurements with calc_time().
+## Input parameters:
+## - 
+
+
+
+#time to drive from plot to plot
+c_1=c(10)#km/h average driving speed
+#distance between subplots
+dist_sub=60#m
+#time to walk from plot to plot
+v_1=c(2.5) #km/h average walking speed
+#time to measure plot proportional to area and plot biomass
+rho_1=rep(0.0035,no_strata)#h/m^2
+#time to delimitate plot proportional to perimeter and weighted with plot biomass
+nu_1=rep(0.0014,no_strata)#h/m
+#time to extract permissions to measure from focus groups (per plot). Smaller in deep forest.
+tp_1<-c(5)
+
+
+## + Optimization ----
 
 
 strAlloc_1A<- strAlloc(
