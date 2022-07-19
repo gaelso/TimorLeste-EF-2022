@@ -4,7 +4,7 @@
 ## +++ +++
 
 
-## Make NFI grids ----
+## + Make NFI grids ----
 
 ## Build grid and check number of forest plots if a LC raster file is provided
 make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = rs_jica, forest_classes = NULL, forest_colors = NULL){
@@ -100,3 +100,43 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 } ## END function
 
 
+
+## + Time required for measurements ----
+
+calc_time <- function(n0, Nh, AGB, subplot_area, n_subplots, d_subplots, 
+                      c=NULL, v=NULL, rho=NULL, nu=NULL, tp=NULL) {
+  ## calculation of costs (from Picard's Guide methodologique d'evaluation rapide des bois)
+  
+  ## n0            Number of plots
+  ## Nh            Population area
+  ## subplot_area  Area of subplot in ha
+  ## n_subplot     Number of subplots
+  ## d_subplot     Distance between subplots. #1000 in denominator transforms to km
+  ## c
+  ## v
+  ## rho
+  ## nu
+  ## tp 
+  
+  ## tw = Time to walk from plot to plot. It assumes n0=400 plots. Areas are converted to km here.
+  ## Walking assumes a cross where team has to go back to center subplot for every side of the cross
+  tw <- if (!is.null(v)) d_subplots * (n_subplots - 1) * 2 / (1000 * v) else rep(0, length(Nh))
+  
+  ## tc = time to drive from plot to plot. It assumes n0=400 plots. Areas are converted
+  #to km here
+  tc<-if (!is.null(c)) sqrt(sum(Nh / 100) / (n0 * Nh / sum(Nh))) / c else rep(0,length(Nh))
+  
+  ## tm = time to measure plot proportional to area and plot biomass
+  tm <- if (!is.null(rho)) rho * area_subplot * no_subplots * 10000 * AGB / max(AGB) else rep(0, length(AGB))
+  
+  #tm<-if(!is.null(rho)) rho*subplotsize*no_subplots*10000*AGB else rep(0,length(AGB))
+  
+  ## time to delimitate plot proportional to perimeter and weighted with plot biomass
+  td <- if (!is.null(nu)) 2 * nu * pi * sqrt(subplotsize * 10000 / pi) * no_subplots * sqrt(AGB) / max(sqrt(AGB)) else rep(0, length(AGB))
+  
+  #time to request permission
+  tp<-if(!is.null(tp)) tp else rep(0,length(Nh))
+  ##Total cost per plot
+  T<-tc+tw+tm+td+tp
+  #  return(T)
+}
