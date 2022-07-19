@@ -10,6 +10,13 @@
 #############################################################################
 ## FIND SAMPLE SIZE FOR LIBERIA ----------------------------------------------
 #############################################################################
+
+##
+## GAEL: Here I have some concern that if area_ref is large (say 1km2 plot like Avitabile 2016)
+##       and area_new is small (typical plot size < 0.5), scale_stdev() will create very small 
+##       output and scale_CV a very large one. 
+##
+
 #Scaling functions between plot sizes, for std dev and CV
 scale_stdev=function(a_ref,a_new,stdev_ref,expon){
   ##a_ref is area of reference (i.e., 1 ha pixel)
@@ -54,7 +61,13 @@ Cost_plot_hours<-function(n0,Nh,AGB,subplotsize,n_subplots,d_subplots,c=NULL,v=N
 
 ## INITIALIZATION PARAMETERS 
 ## simple Zeide's (1980) approach
+
+##
+## GAEL: pix_area should be 100 as everything else seems to be in ha in the script
+##
+
 pix_area= 1     #ha. of pixel in Avitabile's biomass map
+
 #subplot_rad= 12.62# radius in m. of subplot 
 subplot_rad=15
 no_subplots=4   # no. subplots in previous inventories
@@ -81,6 +94,10 @@ nu_1=rep(0.0014,no_strata)#h/m
 tp_1<-c(5)
 
 
+##
+## GAEL: I commented out this part and added directly the total area to save time
+##
+
 # #READ SHAPEFILE
 # library(rgdal)
 # library(rgeos)
@@ -103,6 +120,11 @@ tp_1<-c(5)
 
 lib_area <- 9587189
 
+##
+## GAEL: Values of AGB_1A and Sh_1A are from all pixels from Avitabile 2016 falling 
+##       in Liberia right?
+##
+
 ## Liberia 1 strata:Avitabile 
 # Strata: Forest Management Concessions(100 x 100 m),# rest of country (100 x 100 m)
 Nh_1A=c(lib_area)#has
@@ -112,11 +134,22 @@ CV_1A=Sh_1A/AGB_1A*100
 
 #Scale CV and std dev. at cluster(plot) level. Assumes larger circle of 15 m radius
 #AGB_2A_plotnew<-AGB_2A*plotnew_size
+
+## GAEL: AGB_1A plot ton/ha * ha -> ton
 AGB_1A_plot<-AGB_1A*plot_area
+
+## GAEL: applying directly to CV in %, plot_area and pix_area should be both in ha
 CV_1A_plot=scale_CV(pix_area,plot_area,CV_1A,0.5)   # CV (%) per ha in plot FMC
 Sh_1A_plot=scale_stdev(pix_area,plot_area,Sh_1A,0.5)  # stdev per ha in plot FMC
+
+## GAEL: Works fine with pix_area = 1 but gives weird results if pix_area = 100
 CV_1A;CV_1A_plot;#comparing CV's
 Sh_1A;Sh_1A_plot #comparing Sh's
+
+
+## 
+## GAEL: commented out this part as your indication, started with n_init = 356
+##
 
 # ############################################################################
 # #METHOD 1: samplingbook: 
@@ -135,18 +168,21 @@ Sh_1A;Sh_1A_plot #comparing Sh's
 # }
 # ssize_1A;#[1]  356
 # n_init<-ssize_1A
-# T_1<-Cost_plot_hours(n0=n_init,Nh=Nh_1A,AGB=AGB_1A,subplotsize=subplot_area,n_subplots=no_subplots,d_subplots=dist_sub,c=c_1,v=v_1,rho=rho_1,nu=nu_1,tp=tp_1) 
-# T_1
-# 
-# #Calculate total time for inventory
-# n_teams<-6
-# n_days_month<-20
-# n_hours_day<-8
-# n_days_week<-5
-# n_init*T_1#number of hours or whole inventory for one team
-# n_init*T_1/n_teams#number of hours or whole inventory for six team
-# n_init*T_1/(n_teams*n_hours_day)#number of days or whole inventory for six team
-# n_init*T_1/(n_teams*n_hours_day*n_days_month)#number of months or whole inventory for six team
+
+n_init <- 356
+
+T_1<-Cost_plot_hours(n0=n_init,Nh=Nh_1A,AGB=AGB_1A,subplotsize=subplot_area,n_subplots=no_subplots,d_subplots=dist_sub,c=c_1,v=v_1,rho=rho_1,nu=nu_1,tp=tp_1)
+T_1
+
+#Calculate total time for inventory
+n_teams<-6
+n_days_month<-20
+n_hours_day<-8
+n_days_week<-5
+n_init*T_1#number of hours or whole inventory for one team
+n_init*T_1/n_teams#number of hours or whole inventory for six team
+n_init*T_1/(n_teams*n_hours_day)#number of days or whole inventory for six team
+n_init*T_1/(n_teams*n_hours_day*n_days_month)#number of months or whole inventory for six team
 
 
 #METHOD 4: PracTools 
@@ -166,6 +202,10 @@ strAlloc_1A;sum(strAlloc_1A[["nh"]])
 ###########################################################################
 grid_nsubplots<-seq(1,15,1)
 grid_radius<-seq(10,35,1)
+
+grid_nsubplots<-seq(1,6,0.1)
+grid_radius<-seq(15,20,0.1)
+
 grid_cost<-expand.grid(x=grid_radius,y=grid_nsubplots) 
 grid_nsamp<-expand.grid(x=grid_radius,y=grid_nsubplots)
 
@@ -181,10 +221,36 @@ for (i in grid_nsubplots){#no of subplots
     #tot_hours_1team<-n_init*T_1#number of hours or whole inventory for one team
     tot_weeks_6team<-n_init_2*T_1_2/(n_teams*n_hours_day*n_days_week)#number of months or whole inventory for six team
     id<-which(grid_cost$x==j & grid_cost$y==i)
-    grid_cost$z[id]<-tot_weeks_6team
-    grid_nsamp$z[id]<-n_init_2
+    grid_cost$z[id]<-ceiling(tot_weeks_6team)
+    grid_nsamp$z[id]<-ceiling(n_init_2)
   }
 }
+
+## GAEL: converting to matrices
+library(tidyr)
+library(ggplot2)
+
+grid_nsamp2 <- grid_nsamp %>% pivot_wider(names_from = y, values_from = z)
+grid_nsamp2
+
+n300 <- grid_nsamp %>% filter(z == 300)
+n200 <- grid_nsamp %>% filter(z == 200)
+n100 <- grid_nsamp %>% filter(z == 100)
+
+
+ggplot(grid_nsamp, aes(x = x, y = y)) +
+  geom_tile(aes(fill = z)) +
+  scale_fill_viridis_c() +
+  geom_line(data = n300, color = "darkred") +
+  geom_label(data = n300, aes(label = z)) +
+  geom_line(data = n200, color = "red") +
+  geom_label(data = n200, aes(label = z)) +
+  geom_line(data = n100, color = "lightred") +
+  geom_label(data = n100, aes(label = z))
+  
+
+
+
 ##PLOTTING GRAPH OF COSTS
 ###############################
 library(lattice)

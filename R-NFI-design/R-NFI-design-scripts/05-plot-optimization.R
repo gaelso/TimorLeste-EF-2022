@@ -26,7 +26,7 @@ design_elements <- tibble(
     subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
     plot_area      = subplot_area * subplot_nb
     )
-
+design_elements
 
 
 ## + Function parameters ----
