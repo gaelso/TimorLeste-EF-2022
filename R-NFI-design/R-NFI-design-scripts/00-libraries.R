@@ -14,6 +14,8 @@ library(ggspatial)
 library(PracTools)
 
 library(tidyverse)
+library(ggrepel)
+library(ggnewscale)
 
 ggplot2::theme_set(theme_bw())
 
