@@ -322,9 +322,6 @@ for (i in grid_nsubplots){#no of subplots
   }
 }
 
-
-
-
 ## GAEL: testing different vizu: contours is simpler but not as nice
 library(tidyr)
 library(dplyr)
@@ -338,7 +335,12 @@ ggplot(grid_cost, aes(x = x, y = y)) +
   geom_contour_filled(aes(z = z)) +
   geom_contour(data = grid_nsamp2, aes(z = z, colour = after_stat(level)), binwidth = 50, size = 1) +
   scale_color_gradient2(low = "darkgreen", high = "darkred", mid = "yellow", midpoint = 400) +
-  labs(fill = "N weeks", color = "N plot")
+  labs(
+    fill = "N weeks", 
+    color = "N plot", 
+    x = "Subplot radius (m)", 
+    y = "Number of subplots"
+    )
 
 
 
