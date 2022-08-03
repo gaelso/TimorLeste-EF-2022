@@ -78,7 +78,24 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
     } else {
       
       gr_forest <- gr_grid2 +
-        scale_fill_manual(values = forest_colors)
+        scale_fill_manual(values = forest_colors) +
+        theme(text = element_text(family = "LoraIt")) +
+        ggspatial::annotation_scale(
+          location = "tr",
+          bar_cols = c("grey60", "white"),
+          text_family = "LoraIt"
+        ) +
+        ggspatial::annotation_north_arrow(
+          location = "tr", 
+          which_north = "true",
+          pad_x = unit(0.2, "in"), 
+          pad_y = unit(0.3, "in"),
+          style = ggspatial::north_arrow_nautical(
+            fill = c("grey40", "white"),
+            line_col = "grey20",
+            text_family = "LoraIt"
+          )
+        )
       
     }
     

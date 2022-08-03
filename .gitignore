@@ -1,6 +1,7 @@
 ## Custom gitignore
 data/
 results/
+fonts/
 
 # History files
 .Rhistory
