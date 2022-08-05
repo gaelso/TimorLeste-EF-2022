@@ -102,7 +102,7 @@ offset <- st_bbox(sf_country)[c("xmin", "ymin")] + c(x_init, y_init)
 
 ## ++ Test grids 4, 6 and 8 km ---
 
-sf_grid4 <- make_grid(
+grid4 <- make_grid(
   spacing_km = 4, 
   offset = offset, 
   square = F, 
@@ -110,11 +110,11 @@ sf_grid4 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-sf_grid4$gr_forest
-sf_grid4$n_plot_forest
+grid4$gr_forest
+grid4$n_plot_forest
 
 
-sf_grid6 <- make_grid(
+grid6 <- make_grid(
   spacing_km = 6, 
   offset = offset, 
   square = F, 
@@ -122,10 +122,10 @@ sf_grid6 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-sf_grid6$gr_forest
-sf_grid6$n_plot_forest
+grid6$gr_forest
+grid6$n_plot_forest
 
-sf_grid8 <- make_grid(
+grid8 <- make_grid(
   spacing_km = 8, 
   offset = offset, 
   square = F, 
@@ -133,11 +133,19 @@ sf_grid8 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-sf_grid8$gr_forest
-sf_grid8$n_plot_forest
+grid8$gr_forest
+grid8$n_plot_forest
 
 n_plot05
 n_plot10
 
+
+## Overlap grids
+
+ggplot() +
+  geom_sf(data = sf_country, fill = NA, size = 1) +
+  geom_sf(data = grid8$sf_grid, fill = NA, color = "darkorange") +
+  labs(fill = NULL)
+  
 
 ## END ##

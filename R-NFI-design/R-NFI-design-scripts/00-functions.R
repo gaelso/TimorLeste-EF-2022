@@ -108,7 +108,7 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
   } else {
     
     list(
-      grid = sf_grid, points = sf_points, graph = gr_grid, plot = sf_plot, 
+      grid = sf_grid2, points = sf_points, graph = gr_grid, plot = sf_plot, 
       n_plot = n_plot, n_plot_forest = n_plot_forest, gr_forest = gr_forest
     )
     
