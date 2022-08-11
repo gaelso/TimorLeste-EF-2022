@@ -40,6 +40,10 @@ design_elements
 ## AGB map resolution as reference area in ha
 pix_area <- terra::res(rs_agb)[1]^2 / 100^2
 
+## Because variance conversion based on plot size reaches asymptot
+pix_area <- if_else(pix_area > 1, 1, pix_area)
+
+
 param_ABG <- tibble(
   Nh   = area_country / design_elements$plot_area,
   AGB  = agb_tot$agb_mean,
@@ -50,9 +54,11 @@ param_ABG <- tibble(
     AGB_plot = AGB * design_elements$plot_area,
     Sh_plot  = Sh * (design_elements$plot_area / pix_area)^0.5,
     CV_plot  = CV * (pix_area / design_elements$plot_area)^0.5,
-    CV_plot2 = Sh_plot / AGB_plot
+    CV_plot2 = Sh_plot / AGB_plot,
+    CV_plot3 = sqrt(CV^2 * (pix_area / design_elements$plot_area)^0.5), ## Lynch 2017 https://academic.oup.com/forestry/article/90/2/211/2605853
+    Sh_plot3 = sqrt(Sh^2 * (pix_area / design_elements$plot_area)^0.5)
     )
-
+param_ABG
 
 
 ## + + Cost calculation ----

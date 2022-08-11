@@ -144,7 +144,8 @@ n_plot10
 
 ggplot() +
   geom_sf(data = sf_country, fill = NA, size = 1) +
-  geom_sf(data = grid8$sf_grid, fill = NA, color = "darkorange") +
+  geom_sf(data = grid8$grid, fill = NA, color = "darkorange", size = 0.6) +
+  geom_sf(data = grid4$grid, fill = NA, color = "orange") +
   labs(fill = NULL)
   
 

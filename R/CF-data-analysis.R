@@ -79,6 +79,12 @@ tree <- tree_init %>%
   left_join(plot, by = "plot_id")
 
 
+## Number of trees per plot 
+tree %>%
+  filter(tree_dbh >= 10) %>%
+  group_by(plot_id) %>%
+  summarise(count = n())
+
 
 ## Visual checks
 
@@ -181,7 +187,7 @@ tree2 %>%
   geom_point(aes(y = tree_height_top, shape = site), col = "darkgreen") +
   geom_point(aes(y = tree_height_sim, shape = site), col = "darkorange") +
   scale_shape_manual(values = c(1, 3, 2)) +
-  labs(x = "DBH (cm)", y = "Height (m)")
+  labs(x = "DBH (cm)", y = "Height (m)", caption = "Green: measurments\nYellow: model")
 
 tree2
 

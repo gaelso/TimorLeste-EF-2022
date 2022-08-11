@@ -61,7 +61,17 @@ df_jica <- terra::as.data.frame(rs_jica, xy = TRUE) %>%
   as_tibble() %>%
   na.omit()
 
+area_ftype <- df_jica %>%
+  group_by(lc) %>%
+  summarise(count = n()) %>%
+  mutate(
+    area = count * 30^2 / 100^2,
+    area_p = round(area / sum(area) * 100)
+    ) %>%
+  arrange(desc(area)) 
+area_ftype
 
+sum(area_ftype$area_p)
 
 ## + Avitabile 2016 Biomass map ----
 
