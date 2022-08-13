@@ -72,6 +72,7 @@ area_ftype <- df_jica %>%
 area_ftype
 
 sum(area_ftype$area_p)
+sum(area_ftype$area)
 
 ## + Avitabile 2016 Biomass map ----
 

@@ -119,6 +119,67 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 
 
 ## + Time required for measurements ----
+## Based on Picard 2007 (https://core.ac.uk/download/pdf/52632663.pdf)
+## total_time = n_plot * (unit_time_measure + unit_time_travel)
+## time_travel = 1 / march_speed * sqrt(area_forest / n_plot)
+## time_measure = area_plot * unit_time_measure + plot_perimeter * unit_time_delineate
+##              = area_plot * unit_time_measure + 2 * sqrt(pi * area_plot) * unit_time_delineate
+## Adapted to NFI, plots become subplots and need to add local authorization and travel to plots:
+##  - time_travel_subplots = average_distance * subplot_count / march_speed
+##    + For L shaped plot, average_distance = subplot_distance * (subplot_count - 1) * 2 / subplot_count
+##  - time_travel_plot = sqrt(area_country / n_plot)  ## Formula to convert nb of plots to grid spacing.
+##    + Can be improved with average transportation from lodging to plot + transportation from office to lodging every week or two.
+##  
+
+calc_time <- function(n0, Nh, AGB, subplot_area, n_subplots, d_subplots, 
+                      c=NULL, v=NULL, rho=NULL, nu=NULL, tp=NULL) {
+  ## calculation of costs (from Picard's Guide methodologique d'evaluation rapide des bois)
+  
+  ## n0            Number of plots
+  ## Nh            Population area
+  ## subplot_area  Area of subplot in ha
+  ## n_subplot     Number of subplots
+  ## d_subplot     Distance between subplots. #1000 in denominator transforms to km
+  ## c
+  ## v
+  ## rho
+  ## nu
+  ## tp 
+  
+  ## tw = Time to walk from plot to plot. It assumes n0=400 plots. Areas are converted to km here.
+  ## Walking assumes a cross where team has to go back to center subplot for every side of the cross
+  tw <- if (!is.null(v)) d_subplots * (n_subplots - 1) * 2 / (1000 * v) else rep(0, length(Nh))
+  
+  ## tc = time to drive from plot to plot. It assumes n0=400 plots. Areas are converted
+  #to km here
+  tc<-if (!is.null(c)) sqrt(sum(Nh / 100) / (n0 * Nh / sum(Nh))) / c else rep(0,length(Nh))
+  
+  ## tm = time to measure plot proportional to area and plot biomass
+  tm <- if (!is.null(rho)) rho * area_subplot * no_subplots * 10000 * AGB / max(AGB) else rep(0, length(AGB))
+  
+  #tm<-if(!is.null(rho)) rho*subplotsize*no_subplots*10000*AGB else rep(0,length(AGB))
+  
+  ## time to delimitate plot proportional to perimeter and weighted with plot biomass
+  td <- if (!is.null(nu)) 2 * nu * pi * sqrt(subplotsize * 10000 / pi) * no_subplots * sqrt(AGB) / max(sqrt(AGB)) else rep(0, length(AGB))
+  
+  #time to request permission
+  tp<-if(!is.null(tp)) tp else rep(0,length(Nh))
+  ##Total cost per plot
+  T<-tc+tw+tm+td+tp
+  #  return(T)
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 calc_time <- function(n0, Nh, AGB, subplot_area, n_subplots, d_subplots, 
                       c=NULL, v=NULL, rho=NULL, nu=NULL, tp=NULL) {

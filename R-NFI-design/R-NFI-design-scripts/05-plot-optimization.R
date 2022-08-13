@@ -22,15 +22,17 @@
 
 ## + + Initial plot design ----
 
-design_elements <- tibble(
+init_design <- tibble(
   subplot_radius = 17.84,
-  subplot_nb     = 4
+  subplot_count  = 5,
+  subplot_dist   = 60
   ) %>%
   mutate(
     subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
     plot_area      = subplot_area * subplot_nb
     )
-design_elements
+init_design
+
 
 
 ## + + Parameters based on biomass data ----
@@ -38,27 +40,29 @@ design_elements
 ## AGB data from Avitabile 2016 biomass map
 
 ## AGB map resolution as reference area in ha
-pix_area <- terra::res(rs_agb)[1]^2 / 100^2
+# pix_area <- terra::res(rs_agb)[1]^2 / 100^2
 
-## Because variance conversion based on plot size reaches asymptot
+## Because variance conversion based on plot size reaches asymptote
+## Arbitrarily considering that above 1ha the variance doesn't increase anymore. 
 pix_area <- if_else(pix_area > 1, 1, pix_area)
 
-
-param_ABG <- tibble(
+init_param <- tibble(
   Nh   = area_country / design_elements$plot_area,
-  AGB  = agb_tot$agb_mean,
-  Sh   = agb_tot$agb_sd,
-  CV   = Sh / AGB * 100
+  AGB_mean  = agb_tot$agb_mean,
+  AGB_stdev   = agb_tot$agb_sd,
+  AGB_CVCV   = Sh / AGB * 100
   ) %>%
   mutate(
-    AGB_plot = AGB * design_elements$plot_area,
-    Sh_plot  = Sh * (design_elements$plot_area / pix_area)^0.5,
-    CV_plot  = CV * (pix_area / design_elements$plot_area)^0.5,
-    CV_plot2 = Sh_plot / AGB_plot,
+    AGB_plot = AGB_mean * design_elements$plot_area, ## AGB in tons
+    # Sh_plot  = Sh * (pix_area / design_elements$plot_area)^0.5,
+    # CV_plot  = CV * (pix_area / design_elements$plot_area)^0.5,
+    # CV_plot2 = Sh_plot / AGB_plot,
     CV_plot3 = sqrt(CV^2 * (pix_area / design_elements$plot_area)^0.5), ## Lynch 2017 https://academic.oup.com/forestry/article/90/2/211/2605853
-    Sh_plot3 = sqrt(Sh^2 * (pix_area / design_elements$plot_area)^0.5)
+    # Sh_plot2 = CV_plot / 100 * AGB_plot,
+    Sh_plot3 = CV_plot3 / 100 * AGB_plot,
     )
 param_ABG
+
 
 
 ## + + Cost calculation ----
