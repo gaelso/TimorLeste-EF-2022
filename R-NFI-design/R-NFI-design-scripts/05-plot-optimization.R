@@ -25,11 +25,12 @@
 init_design <- tibble(
   subplot_radius = 17.84,
   subplot_count  = 5,
-  subplot_dist   = 60
+  subplot_distance   = 60
   ) %>%
   mutate(
     subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
-    plot_area      = subplot_area * subplot_nb
+    plot_area      = subplot_area * subplot_count,
+    subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
     )
 init_design
 

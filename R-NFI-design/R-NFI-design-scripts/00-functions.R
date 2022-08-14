@@ -127,9 +127,46 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 ## Adapted to NFI, plots become subplots and need to add local authorization and travel to plots:
 ##  - time_travel_subplots = average_distance * subplot_count / march_speed
 ##    + For L shaped plot, average_distance = subplot_distance * (subplot_count - 1) * 2 / subplot_count
-##  - time_travel_plot = sqrt(area_country / n_plot)  ## Formula to convert nb of plots to grid spacing.
+##  - time_travel_plot = sqrt(area_country / n_plot) / car_speed ## Formula to convert nb of plots to grid spacing.
 ##    + Can be improved with average transportation from lodging to plot + transportation from office to lodging every week or two.
-##  
+##  - time_authorization = time to get authorization from local village and recruit workers if necessary
+
+## Example values:
+plot_design <- tibble(
+  subplot_radius = 17.84, ## m
+  subplot_count  = 5,      
+  subplot_distance   = 60 ## m
+) %>%
+  mutate(
+    subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
+    plot_area      = subplot_area * subplot_count,
+    subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
+  )
+
+unit_times <- tibble(
+  march_speed = 2,            ## km/h
+  car_speed = 10,             ## km/h
+  unit_time_measure = 0.02,   ## h/m^2
+  unit_time_delineate = 0.001 ## h/m
+)
+
+area_country <- 15000 ## ha
+n_plot <- 200  
+
+calc_time()
+
+calc_time <- function(unit_times, plot_design, area_country, n_plot) {
+  
+  time_travel_plot <- n_plot * plot_design$subplot_avg_distance_L * plot_design$subplot_count / (unit_times$march_speed * 1000)
+  
+  
+  
+  list(time_travel_plot)
+}
+
+
+
+
 
 calc_time <- function(n0, Nh, AGB, subplot_area, n_subplots, d_subplots, 
                       c=NULL, v=NULL, rho=NULL, nu=NULL, tp=NULL) {
