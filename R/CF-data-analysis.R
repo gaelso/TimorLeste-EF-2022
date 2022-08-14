@@ -199,4 +199,12 @@ write_csv(tree3, "results/tree.csv")
 write_csv(plot2, "results/plot.csv")
 
 
+## Calc tree density for measurement timing
 
+tree_density <- tree2 %>% 
+  mutate(
+    dbh_class = if_else(tree_dbh < 30, "less30", "more30"),
+    tree_density = 100^2/if_else(tree_dbh < 30, 10 * 10, 20 * 25)
+    ) %>%
+  group_by(dbh_class, plot_id) %>%
+  summarise(count = sum(tree_density))

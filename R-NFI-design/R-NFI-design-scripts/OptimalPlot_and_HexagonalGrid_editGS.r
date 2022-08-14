@@ -53,7 +53,12 @@ Cost_plot_hours<-function(n0,Nh,AGB,subplotsize,n_subplots,d_subplots,c=NULL,v=N
   #time to request permission
   tp<-if(!is.null(tp)) tp else rep(0,length(Nh))
   ##Total cost per plot
-  T<-tc+tw+tm+td+tp
+  
+  list(
+    tc = tc, tw = tw, td = td, tm = tm, tp =tp, total_time = tc + tw + td + tm + tp
+  )
+  
+  #T<-tc+tw+tm+td+tp
   #  return(T)
 }
 

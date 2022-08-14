@@ -122,7 +122,8 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 ## Based on Picard 2007 (https://core.ac.uk/download/pdf/52632663.pdf)
 ## total_time = n_plot * (unit_time_measure + unit_time_travel)
 ## time_travel = 1 / march_speed * sqrt(area_forest / n_plot)
-## time_measure = area_plot * unit_time_measure + plot_perimeter * unit_time_delineate
+## time_measure = time_measure + time_delineate
+##              = area_plot * unit_time_measure + plot_perimeter * unit_time_delineate
 ##              = area_plot * unit_time_measure + 2 * sqrt(pi * area_plot) * unit_time_delineate
 ## Adapted to NFI, plots become subplots and need to add local authorization and travel to plots:
 ##  - time_travel_subplots = average_distance * subplot_count / march_speed
@@ -130,6 +131,32 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 ##  - time_travel_plot = sqrt(area_country / n_plot) / car_speed ## Formula to convert nb of plots to grid spacing.
 ##    + Can be improved with average transportation from lodging to plot + transportation from office to lodging every week or two.
 ##  - time_authorization = time to get authorization from local village and recruit workers if necessary
+
+
+calc_time <- function(unit_times, plot_design, area_country, n_plot) {
+  
+  time_travel_plot    <- sqrt(area_country / n_plot) / unit_times$car_speed
+  
+  time_travel_subplot <- plot_design$subplot_avg_distance_L * plot_design$subplot_count / (unit_times$march_speed * 1000)
+  
+  time_delineate_plot <- plot_design$subplot_count * 2 * sqrt(pi * plot_design$subplot_area * 100^2) * unit_times$unit_time_delineate
+  
+  time_measure_plot   <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
+  
+  time_authorization  <- unit_times$unit_time_authorization
+  
+  total_time          <- time_travel_plot + time_travel_subplot + time_delineate_plot + time_measure_plot + time_authorization
+  
+  list(
+    total_time = total_time,
+    time_travel_plot = time_travel_plot,
+    time_travel_subplot = time_travel_subplot,
+    time_delineate_plot = time_delineate_plot,
+    time_measure_plot = time_measure_plot, 
+    time_authorization = time_authorization
+    )
+
+}
 
 ## Example values:
 plot_design <- tibble(
@@ -144,26 +171,18 @@ plot_design <- tibble(
   )
 
 unit_times <- tibble(
-  march_speed = 2,            ## km/h
-  car_speed = 10,             ## km/h
-  unit_time_measure = 0.02,   ## h/m^2
-  unit_time_delineate = 0.001 ## h/m
+  march_speed = 2,             ## km/h
+  car_speed = 10,              ## km/h
+  unit_time_measure = 0.0035,    ## h/m^2
+  unit_time_delineate = 0.0014, ## h/m
+  unit_time_authorization = 2  ## h
 )
 
 area_country <- 15000 ## ha
 n_plot <- 200  
 
-calc_time()
-
-calc_time <- function(unit_times, plot_design, area_country, n_plot) {
-  
-  time_travel_plot <- n_plot * plot_design$subplot_avg_distance_L * plot_design$subplot_count / (unit_times$march_speed * 1000)
-  
-  
-  
-  list(time_travel_plot)
-}
-
+tt <- calc_time(unit_times = unit_times, plot_design = plot_design, area_country = 15000, n_plot = 400)
+tt
 
 
 
