@@ -18,6 +18,7 @@ library(terra)
 plot_init <- read_csv("data/CF/plot.csv", show_col_types = FALSE)
 tree_init <- read_csv("data/CF/tree.csv", show_col_types = FALSE)
 sapling_init <- read_csv("data/CF/sapling.csv", show_col_types = FALSE)
+seedling_init <- read_csv("data/CF/seedling.csv", show_col_types = FALSE)
 species_init <- read_csv("data/CF/species-list.csv", show_col_types = FALSE)
 
 ## Load E raster file Download E.nc from: 
@@ -201,10 +202,106 @@ write_csv(plot2, "results/plot.csv")
 
 ## Calc tree density for measurement timing
 
-tree_density <- tree2 %>% 
+tree_density <- tree2 %>%
   mutate(
-    dbh_class = if_else(tree_dbh < 30, "less30", "more30"),
+    dbh_class2 = if_else(tree_dbh < 30, "less30", "more30"),
+    dbh_class = floor(tree_dbh/10) * 10,
     tree_density = 100^2/if_else(tree_dbh < 30, 10 * 10, 20 * 25)
     ) %>%
   group_by(dbh_class, plot_id) %>%
   summarise(count = sum(tree_density))
+tree_density
+
+tree_density2 <- tree_density %>%
+  group_by(dbh_class) %>%
+  summarise(count = mean(count))
+tree_density2
+
+seedling_density <- seedling_init %>%
+  group_by(plot_id) %>%
+  summarise(count = n() * 100^2/5^2) %>%
+  summarise(count = mean(count))
+seedling_density
+
+tree_density3 <- tree_density2 %>%
+  bind_rows(list(dbh_class = 0, count = seedling_density$count)) %>%
+  arrange(dbh_class) %>%
+  mutate(dbh_class2 = dbh_class + 5)
+tree_density3
+
+ggplot(tree_density3) +
+  geom_point(aes(x = dbh_class2, y = count))
+
+(1667 + 175) / 2
+
+##  0-10 => 1500 trees/ha
+## 10-30 => 1000 trees/ha
+## 30+   =>  290 trees/ha
+
+# Modelling to get trees 10 cm dbh but not working well with no data point
+# data_model <- tree_density3 %>% 
+#   select(-dbh_class) %>%
+#   filter(dbh_class2 != 15)
+# 
+# ggplot(data_model) +
+#   geom_point(aes(x = dbh_class2, y = count))
+# 
+# ggplot(data_model) +
+#   geom_text(aes(x = dbh_class2, y = 1 + 2000/exp(count), label = dbh_class2))
+# 
+# tt <- tibble(x = 1:100, y = 2000 * (1:100)^-0.8)
+# 
+# ggplot(tt, aes(x =x , y=y)) + 
+#   geom_line() +
+#   geom_point(data = data_model, aes(x = dbh_class2, y = count))
+# 
+# lm1 <- lm(data = data_model, formula = log(count) ~ log(dbh_class2))
+# summary(lm1)
+# coef(lm1)
+# 
+# tt <- tibble(x = 1:100, y = exp(coef(lm1)[1]) * x^coef(lm1)[2])
+# 
+# ggplot(data_model, aes(x = dbh_class2)) + 
+#   geom_point(aes(y = count)) +
+#   geom_line(data = tt, aes(x = x , y = y)) +
+#   xlim(0, 100) + ylim(0, 2000)
+# 
+# 
+# library(lmfor)
+# 
+# startHDweibull(d = data_model$dbh_class2, h = data_model$count, bh = 0)
+# 
+# nlme1 <- nlme(
+#   model = count ~ a * (1 - exp(-b * dbh_class2^c)),
+#   data = cbind(data_model, g = "a"),
+#   fixed = a + b + c ~ 1,
+#   groups = ~g,
+#   #start = c(a = 1000, b = 10, c = -1),
+#   start = c(a = 1600, b = 50000, c = -10)
+# )
+# 
+# summary(nlme1)
+# 
+# 
+# nlme2 <- nlme(
+#   model = count ~ a * (1 - exp(- dbh_class2^b)),
+#   data = cbind(data_model, g = "a"),
+#   fixed = a + b ~ 1,
+#   groups = ~g,
+#   start = c(a = 2000, b = -1)
+# )
+
+summary(nlme2)
+
+
+tt <- tibble(x = 1:100, y = fixef(nlme2)[1] * (1 - exp(-x^fixef(nlme2)[2])))
+
+ggplot(data_model, aes(x = dbh_class2)) + 
+  geom_point(aes(y = count)) +
+  geom_line(data = tt, aes(x = x , y = y)) +
+  xlim(0, 100) + ylim(0, 2000)
+
+
+
+
+

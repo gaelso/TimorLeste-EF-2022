@@ -141,7 +141,28 @@ calc_time <- function(unit_times, plot_design, area_country, n_plot) {
   
   time_delineate_plot <- plot_design$subplot_count * 2 * sqrt(pi * plot_design$subplot_area * 100^2) * unit_times$unit_time_delineate
   
-  time_measure_plot   <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
+  
+  if (!is.null(subplot_design)) {
+    
+    measure_nest <- left_join(subplot_design, unit_times_nest, by = "nest_level")
+    
+    ## Calculate time to measure for each nested level
+    vec_times <- map_dbl(measure_nest$nest_level, .f = function(x){
+      
+      measure_nest %>% 
+        filter(nest_level == x) %>%
+        mutate(time_measure = subplot_area * tree_density * unit_time_measure / 60) %>%
+        pull(time_measure)
+      
+    }) 
+    
+    time_measure_plot <- sum(vec_times) * plot_design$subplot_count
+    
+  } else {
+    
+    time_measure_plot   <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
+    
+  }
   
   time_authorization  <- unit_times$unit_time_authorization
   
@@ -170,6 +191,15 @@ plot_design <- tibble(
     subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
   )
 
+subplot_design <- tibble(
+  nest_level = c("nest1", "nest2", "nest3"),
+  subplot_radius = c(18, 12, 2.5),
+  subplot_dbh_min = c(30, 10, 2),
+  tree_density    = c(200, 500, 1000)
+  #tree_density    = c(300, 1000, 1500)
+) %>%
+  mutate(subplot_area = round(pi * subplot_radius^2 /100^2, 3))
+
 unit_times <- tibble(
   march_speed = 2,             ## km/h
   car_speed = 10,              ## km/h
@@ -177,6 +207,15 @@ unit_times <- tibble(
   unit_time_delineate = 0.0014, ## h/m
   unit_time_authorization = 2  ## h
 )
+
+unit_times_nest <- tibble(
+  nest_level = c("nest1", "nest2", "nest3"),
+  unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
+)
+
+nest_design <- subplot_design %>%
+  left_join(unit_times_nest, by = "nest_level") %>%
+  mutate(unit_time_measure = tree_density * unit_time_measure / (60 * 100^2)) ## h/m2
 
 area_country <- 15000 ## ha
 n_plot <- 200  
