@@ -133,7 +133,7 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 ##  - time_authorization = time to get authorization from local village and recruit workers if necessary
 
 
-calc_time <- function(unit_times, plot_design, area_country, n_plot) {
+calc_time <- function(unit_times, plot_design, nest_design = NULL, area_country, n_plot) {
   
   time_travel_plot    <- sqrt(area_country / n_plot) / unit_times$car_speed
   
@@ -142,25 +142,14 @@ calc_time <- function(unit_times, plot_design, area_country, n_plot) {
   time_delineate_plot <- plot_design$subplot_count * 2 * sqrt(pi * plot_design$subplot_area * 100^2) * unit_times$unit_time_delineate
   
   
-  if (!is.null(subplot_design)) {
-    
-    measure_nest <- left_join(subplot_design, unit_times_nest, by = "nest_level")
+  if (!is.null(nest_design)) {
     
     ## Calculate time to measure for each nested level
-    vec_times <- map_dbl(measure_nest$nest_level, .f = function(x){
-      
-      measure_nest %>% 
-        filter(nest_level == x) %>%
-        mutate(time_measure = subplot_area * tree_density * unit_time_measure / 60) %>%
-        pull(time_measure)
-      
-    }) 
-    
-    time_measure_plot <- sum(vec_times) * plot_design$subplot_count
+    time_measure_plot <- sum(nest_design$time_measure) * plot_design$subplot_count
     
   } else {
     
-    time_measure_plot   <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
+    time_measure_plot <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
     
   }
   
@@ -174,7 +163,8 @@ calc_time <- function(unit_times, plot_design, area_country, n_plot) {
     time_travel_subplot = time_travel_subplot,
     time_delineate_plot = time_delineate_plot,
     time_measure_plot = time_measure_plot, 
-    time_authorization = time_authorization
+    time_authorization = time_authorization,
+    nested_optimization = if_else(!is.null(nest_design), "yes", "no")
     )
 
 }
@@ -195,16 +185,16 @@ subplot_design <- tibble(
   nest_level = c("nest1", "nest2", "nest3"),
   subplot_radius = c(18, 12, 2.5),
   subplot_dbh_min = c(30, 10, 2),
-  tree_density    = c(200, 500, 1000)
-  #tree_density    = c(300, 1000, 1500)
+  #tree_density    = c(200, 500, 1000)
+  tree_density    = c(300, 1000, 1500)
 ) %>%
-  mutate(subplot_area = round(pi * subplot_radius^2 /100^2, 3))
+  mutate(subplot_area = round(pi * subplot_radius^2 / 100^2, 3))
 
 unit_times <- tibble(
   march_speed = 2,             ## km/h
   car_speed = 10,              ## km/h
-  unit_time_measure = 0.0035,    ## h/m^2
-  unit_time_delineate = 0.0014, ## h/m
+  unit_time_measure = 0.0035,    ## h/m^2 from Picard 2017
+  unit_time_delineate = 0.0014, ## h/m    from Picard 2017
   unit_time_authorization = 2  ## h
 )
 
@@ -215,12 +205,16 @@ unit_times_nest <- tibble(
 
 nest_design <- subplot_design %>%
   left_join(unit_times_nest, by = "nest_level") %>%
-  mutate(unit_time_measure = tree_density * unit_time_measure / (60 * 100^2)) ## h/m2
+  mutate(
+    unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
+    time_measure      = subplot_area * 100^2 * unit_time_measure  ## h
+    ) 
+nest_design
 
 area_country <- 15000 ## ha
 n_plot <- 200  
 
-tt <- calc_time(unit_times = unit_times, plot_design = plot_design, area_country = 15000, n_plot = 400)
+tt <- calc_time(unit_times = unit_times, plot_design = plot_design, nest_design = nest_design, area_country = 15000, n_plot = 400)
 tt
 
 

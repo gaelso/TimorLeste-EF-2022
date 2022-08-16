@@ -3,130 +3,140 @@
 ## NFI design optimization scripts for Timor Leste
 ## +++ +++
 
-
-## Plot optimization based on Practools::strAlloc().
-## Input variables are:
-## - n.tot  fixed total sample size
-## - Nh	    vector of population stratum sizes (N_h) or pop stratum proportions (W_h)
-## - Sh	    stratum unit standard deviations (S_h), required unless alloc = "prop"
-## - cost	  total variable cost
-## - ch	    vector of costs per unit in stratum h (c_h)
-## - V0	    fixed variance target for estimated mean
-## - CV0	  fixed CV target for estimated mean
-## - ybarU  population mean of y (\bar{y}_U)
-## - alloc  type of allocation; must be one of "prop", "neyman", "totcost", "totvar"
+## Calculation of CV and time for a number of plot size
 
 
+## INPUT LIST:
+## + Model params:
+list_params <- list(
+  subplot_count    = c(1, 3, 5),
+  subplot_distance = c(2:4), ## multiplier of plot radius
+  nest1_radius     = c(15:20),
+  nest2_radius     = c(8:12),
+  plot_shape       = c("L")
+)
 
-## + Function parameters ----
+## + Nested plot tree characteristics
+nest_input <- tibble(
+  nest_level = c("nest1", "nest2", "nest3"),
+  nest_dbh_min = c(30, 10, 2),
+  #tree_density    = c(200, 500, 1000)
+  tree_density    = c(300, 1000, 1500),
+  unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
+)
 
-## + + Initial plot design ----
+## + unit times 
+unit_times <- tibble(
+  march_speed = 2,              ## km/h
+  car_speed = 10,               ## km/h
+  unit_time_measure = 0.0035,   ## h/m^2 from Picard 2017
+  unit_time_delineate = 0.0014, ## h/m    from Picard 2017
+  unit_time_authorization = 2   ## h
+)
 
-init_design <- tibble(
-  subplot_radius = 17.84,
-  subplot_count  = 5,
-  subplot_distance   = 60
+## + country area
+area_country <- 15000 ## ha
+
+
+optimize_design <- function(list_params, nest_input, unit_times, area_country){
+  
+  ## 1. Make a table of unique param combinations
+  input_optimization <- tidyr::expand_grid(
+    list_params$subplot_count, 
+    list_params$subplot_distance, 
+    list_params$nest1_radius, 
+    list_params$nest2_radius, 
+    list_params$plot_shape
+    ) %>%
+    mutate(id = 1:nrow(.)) %>%
+    select(id, everything())
+  
+  
+  
+  
+  
+} ## End function optimize design
+
+
+
+
+result_optimization <- map_dfr(seq_along(input_optimization$id), function(x){
+  
+  ## Select row for calculations
+  input <- input_optimization %>%
+    slice(x)
+  
+  ## Calculate subplot characteristics
+  subplot_area         <- round(pi * input$nest1_radius^2 /100^2, 3)
+  subplot_distance     <- input$subplot_distance * input$nest1_radius
+  
+  if (input$subplot_distance == 1) {
+    
+    subplot_avg_distance <- subplot_distance
+    
+  } else {
+    
+    subplot_avg_distance <- case_when(
+      input$plot_shape == "L" ~ subplot_distance * (input$subplot_count - 1) * 2 / input$subplot_count,
+      TRUE ~ NA_real_
+    )
+    
+  }
+  
+  ## Make nested level measurement times
+  nest_design <- tibble(
+    nest_level = c("nest1", "nest2", "nest3"),
+    nest_radius = c(input$nest1_radius, input$nest2_radius, 2.5)
   ) %>%
+    left_join(nest_input, by = "nest_level") %>%
+    mutate(
+      nest_area         = round(pi * nest_radius^2 / 100^2, 3),
+      unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
+      time_measure      = nest_area * 100^2 * unit_time_measure  ## h
+      )
+  
+}) ## END MAP CALL
+
+
+## Example values:
+plot_design <- tibble(
+  subplot_radius = 17.84, ## m
+  subplot_count  = 5,      
+  subplot_distance   = 60 ## m
+) %>%
   mutate(
     subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
     plot_area      = subplot_area * subplot_count,
     subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
-    )
-init_design
+  )
 
+subplot_design <- tibble(
+  nest_level = c("nest1", "nest2", "nest3"),
+  subplot_radius = c(18, 12, 2.5),
+  subplot_dbh_min = c(30, 10, 2),
+  #tree_density    = c(200, 500, 1000)
+  tree_density    = c(300, 1000, 1500)
+) %>%
+  mutate(subplot_area = round(pi * subplot_radius^2 / 100^2, 3))
 
+unit_times <- tibble(
+  march_speed = 2,              ## km/h
+  car_speed = 10,               ## km/h
+  unit_time_measure = 0.0035,   ## h/m^2 from Picard 2017
+  unit_time_delineate = 0.0014, ## h/m    from Picard 2017
+  unit_time_authorization = 2   ## h
+)
 
-## + + Parameters based on biomass data ----
+unit_times_nest <- tibble(
+  nest_level = c("nest1", "nest2", "nest3"),
+  unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
+)
 
-## AGB data from Avitabile 2016 biomass map
-
-## AGB map resolution as reference area in ha
-# pix_area <- terra::res(rs_agb)[1]^2 / 100^2
-
-## Because variance conversion based on plot size reaches asymptote
-## Arbitrarily considering that above 1ha the variance doesn't increase anymore. 
-pix_area <- if_else(pix_area > 1, 1, pix_area)
-
-init_param <- tibble(
-  Nh   = area_country / design_elements$plot_area,
-  AGB_mean  = agb_tot$agb_mean,
-  AGB_stdev   = agb_tot$agb_sd,
-  AGB_CVCV   = Sh / AGB * 100
-  ) %>%
+nest_design <- subplot_design %>%
+  left_join(unit_times_nest, by = "nest_level") %>%
   mutate(
-    AGB_plot = AGB_mean * design_elements$plot_area, ## AGB in tons
-    # Sh_plot  = Sh * (pix_area / design_elements$plot_area)^0.5,
-    # CV_plot  = CV * (pix_area / design_elements$plot_area)^0.5,
-    # CV_plot2 = Sh_plot / AGB_plot,
-    CV_plot3 = sqrt(CV^2 * (pix_area / design_elements$plot_area)^0.5), ## Lynch 2017 https://academic.oup.com/forestry/article/90/2/211/2605853
-    # Sh_plot2 = CV_plot / 100 * AGB_plot,
-    Sh_plot3 = CV_plot3 / 100 * AGB_plot,
-    )
-param_ABG
+    unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
+    time_measure      = subplot_area * 100^2 * unit_time_measure  ## h
+  ) 
+nest_design
 
-
-
-## + + Cost calculation ----
-
-## Cost is calculated in time required for tree measurements with calc_time().
-## Input parameters:
-## - 
-
-
-
-#time to drive from plot to plot
-c_1=c(10)#km/h average driving speed
-#distance between subplots
-dist_sub=60#m
-#time to walk from plot to plot
-v_1=c(2.5) #km/h average walking speed
-#time to measure plot proportional to area and plot biomass
-rho_1=rep(0.0035,no_strata)#h/m^2
-#time to delimitate plot proportional to perimeter and weighted with plot biomass
-nu_1=rep(0.0014,no_strata)#h/m
-#time to extract permissions to measure from focus groups (per plot). Smaller in deep forest.
-tp_1<-c(5)
-
-
-## + Optimization ----
-
-
-strAlloc_1A<- strAlloc(
-  Nh = alloc_param$Nh, 
-  Sh = alloc_param$Sh_plot, 
-  CV0 = 0.1/qt(.95,df=Inf), 
-  ch = T_1, 
-  ybarU=alloc_param$AGB_plot,
-  alloc = "totvar"
-  )#ybarU is population mean
-strAlloc_1A
-sum(strAlloc_1A[["nh"]])
-
-
-## INITIALIZATION PARAMETERS 
-## simple Zeide's (1980) approach
-pix_area = 1     #ha. of pixel in Avitabile's biomass map
-#subplot_rad= 12.62# radius in m. of subplot 
-subplot_rad=15
-no_subplots=4   # no. subplots in previous inventories
-#no_subplots=4
-subplot_area= pi*subplot_rad^2/10000 # ha. of subplot (to be used if calculations at subplot level)
-plot_area= subplot_area * no_subplots #ha. of cluster (to be used if calculations at cluster level)
-plot_area
-#no.strata
-no_strata=1
-
-## Liberia 1 strata
-##Calculate rates for cost-related times
-#time to drive from plot to plot
-c_1=c(10)#km/h average driving speed
-#distance between subplots
-dist_sub=60#m
-#time to walk from plot to plot
-v_1=c(2.5) #km/h average walking speed
-#time to measure plot proportional to area and plot biomass
-rho_1=rep(0.0035,no_strata)#h/m^2
-#time to delimitate plot proportional to perimeter and weighted with plot biomass
-nu_1=rep(0.0014,no_strata)#h/m
-#time to extract permissions to measure from focus groups (per plot). Smaller in deep forest.
-tp_1<-c(5)
