@@ -137,28 +137,29 @@ calc_time <- function(unit_times, plot_design, nest_design = NULL, area_country,
   
   time_travel_plot    <- sqrt(area_country / n_plot) / unit_times$car_speed
   
-  time_travel_subplot <- plot_design$subplot_avg_distance_L * plot_design$subplot_count / (unit_times$march_speed * 1000)
-  
-  time_delineate_plot <- plot_design$subplot_count * 2 * sqrt(pi * plot_design$subplot_area * 100^2) * unit_times$unit_time_delineate
+  time_travel_subplot <- plot_design$subplot_avg_distance * plot_design$subplot_count / (unit_times$march_speed * 1000)
   
   
   if (!is.null(nest_design)) {
     
     ## Calculate time to measure for each nested level
-    time_measure_plot <- sum(nest_design$time_measure) * plot_design$subplot_count
+    time_measure_plot   <- sum(nest_design$time_measure) * plot_design$subplot_count
+    time_delineate_plot <- 0 
     
   } else {
     
-    time_measure_plot <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
+    ## If not nested, using unit_times params and adding time to delineate plot
+    time_measure_plot   <- plot_design$subplot_area * plot_design$subplot_count * 100^2 * unit_times$unit_time_measure
+    time_delineate_plot <- plot_design$subplot_count * 2 * sqrt(pi * plot_design$subplot_area * 100^2) * unit_times$unit_time_delineate
     
   }
   
   time_authorization  <- unit_times$unit_time_authorization
   
-  total_time          <- time_travel_plot + time_travel_subplot + time_delineate_plot + time_measure_plot + time_authorization
+  plot_time          <- time_travel_plot + time_travel_subplot + time_delineate_plot + time_measure_plot + time_authorization
   
-  list(
-    total_time = total_time,
+  tibble(
+    plot_time = plot_time,
     time_travel_plot = time_travel_plot,
     time_travel_subplot = time_travel_subplot,
     time_delineate_plot = time_delineate_plot,
@@ -167,143 +168,56 @@ calc_time <- function(unit_times, plot_design, nest_design = NULL, area_country,
     nested_optimization = if_else(!is.null(nest_design), "yes", "no")
     )
 
-}
-
-## Example values:
-plot_design <- tibble(
-  subplot_radius = 17.84, ## m
-  subplot_count  = 5,      
-  subplot_distance   = 60 ## m
-) %>%
-  mutate(
-    subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
-    plot_area      = subplot_area * subplot_count,
-    subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
-  )
-
-subplot_design <- tibble(
-  nest_level = c("nest1", "nest2", "nest3"),
-  subplot_radius = c(18, 12, 2.5),
-  subplot_dbh_min = c(30, 10, 2),
-  #tree_density    = c(200, 500, 1000)
-  tree_density    = c(300, 1000, 1500)
-) %>%
-  mutate(subplot_area = round(pi * subplot_radius^2 / 100^2, 3))
-
-unit_times <- tibble(
-  march_speed = 2,             ## km/h
-  car_speed = 10,              ## km/h
-  unit_time_measure = 0.0035,    ## h/m^2 from Picard 2017
-  unit_time_delineate = 0.0014, ## h/m    from Picard 2017
-  unit_time_authorization = 2  ## h
-)
-
-unit_times_nest <- tibble(
-  nest_level = c("nest1", "nest2", "nest3"),
-  unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
-)
-
-nest_design <- subplot_design %>%
-  left_join(unit_times_nest, by = "nest_level") %>%
-  mutate(
-    unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
-    time_measure      = subplot_area * 100^2 * unit_time_measure  ## h
-    ) 
-nest_design
-
-area_country <- 15000 ## ha
-n_plot <- 200  
-
-tt <- calc_time(unit_times = unit_times, plot_design = plot_design, nest_design = nest_design, area_country = 15000, n_plot = 400)
-tt
+} ## End function calc_time()
 
 
 
-
-calc_time <- function(n0, Nh, AGB, subplot_area, n_subplots, d_subplots, 
-                      c=NULL, v=NULL, rho=NULL, nu=NULL, tp=NULL) {
-  ## calculation of costs (from Picard's Guide methodologique d'evaluation rapide des bois)
-  
-  ## n0            Number of plots
-  ## Nh            Population area
-  ## subplot_area  Area of subplot in ha
-  ## n_subplot     Number of subplots
-  ## d_subplot     Distance between subplots. #1000 in denominator transforms to km
-  ## c
-  ## v
-  ## rho
-  ## nu
-  ## tp 
-  
-  ## tw = Time to walk from plot to plot. It assumes n0=400 plots. Areas are converted to km here.
-  ## Walking assumes a cross where team has to go back to center subplot for every side of the cross
-  tw <- if (!is.null(v)) d_subplots * (n_subplots - 1) * 2 / (1000 * v) else rep(0, length(Nh))
-  
-  ## tc = time to drive from plot to plot. It assumes n0=400 plots. Areas are converted
-  #to km here
-  tc<-if (!is.null(c)) sqrt(sum(Nh / 100) / (n0 * Nh / sum(Nh))) / c else rep(0,length(Nh))
-  
-  ## tm = time to measure plot proportional to area and plot biomass
-  tm <- if (!is.null(rho)) rho * area_subplot * no_subplots * 10000 * AGB / max(AGB) else rep(0, length(AGB))
-  
-  #tm<-if(!is.null(rho)) rho*subplotsize*no_subplots*10000*AGB else rep(0,length(AGB))
-  
-  ## time to delimitate plot proportional to perimeter and weighted with plot biomass
-  td <- if (!is.null(nu)) 2 * nu * pi * sqrt(subplotsize * 10000 / pi) * no_subplots * sqrt(AGB) / max(sqrt(AGB)) else rep(0, length(AGB))
-  
-  #time to request permission
-  tp<-if(!is.null(tp)) tp else rep(0,length(Nh))
-  ##Total cost per plot
-  T<-tc+tw+tm+td+tp
-  #  return(T)
-}
-
-
-
-
-
-
-
-
-
-
-
+# ## Example values:
+# plot_design <- tibble(
+#   subplot_radius = 17.84, ## m
+#   subplot_count  = 5,      
+#   subplot_distance   = 60 ## m
+# ) %>%
+#   mutate(
+#     subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
+#     plot_area      = subplot_area * subplot_count,
+#     subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
+#   )
+# 
+# subplot_design <- tibble(
+#   nest_level = c("nest1", "nest2", "nest3"),
+#   subplot_radius = c(18, 12, 2.5),
+#   subplot_dbh_min = c(30, 10, 2),
+#   #tree_density    = c(200, 500, 1000)
+#   tree_density    = c(300, 1000, 1500)
+# ) %>%
+#   mutate(subplot_area = round(pi * subplot_radius^2 / 100^2, 3))
+# 
+# unit_times <- tibble(
+#   march_speed = 2,             ## km/h
+#   car_speed = 10,              ## km/h
+#   unit_time_measure = 0.0035,    ## h/m^2 from Picard 2017
+#   unit_time_delineate = 0.0014, ## h/m    from Picard 2017
+#   unit_time_authorization = 2  ## h
+# )
+# 
+# unit_times_nest <- tibble(
+#   nest_level = c("nest1", "nest2", "nest3"),
+#   unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
+# )
+# 
+# nest_design <- subplot_design %>%
+#   left_join(unit_times_nest, by = "nest_level") %>%
+#   mutate(
+#     unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
+#     time_measure      = subplot_area * 100^2 * unit_time_measure  ## h
+#     ) 
+# nest_design
+# 
+# area_country <- 15000 ## ha
+# n_plot <- 200  
+# 
+# tt <- calc_time(unit_times = unit_times, plot_design = plot_design, nest_design = nest_design, area_country = 15000, n_plot = 400)
+# tt
 
 
-calc_time <- function(n0, Nh, AGB, subplot_area, n_subplots, d_subplots, 
-                      c=NULL, v=NULL, rho=NULL, nu=NULL, tp=NULL) {
-  ## calculation of costs (from Picard's Guide methodologique d'evaluation rapide des bois)
-  
-  ## n0            Number of plots
-  ## Nh            Population area
-  ## subplot_area  Area of subplot in ha
-  ## n_subplot     Number of subplots
-  ## d_subplot     Distance between subplots. #1000 in denominator transforms to km
-  ## c
-  ## v
-  ## rho
-  ## nu
-  ## tp 
-  
-  ## tw = Time to walk from plot to plot. It assumes n0=400 plots. Areas are converted to km here.
-  ## Walking assumes a cross where team has to go back to center subplot for every side of the cross
-  tw <- if (!is.null(v)) d_subplots * (n_subplots - 1) * 2 / (1000 * v) else rep(0, length(Nh))
-  
-  ## tc = time to drive from plot to plot. It assumes n0=400 plots. Areas are converted
-  #to km here
-  tc<-if (!is.null(c)) sqrt(sum(Nh / 100) / (n0 * Nh / sum(Nh))) / c else rep(0,length(Nh))
-  
-  ## tm = time to measure plot proportional to area and plot biomass
-  tm <- if (!is.null(rho)) rho * area_subplot * no_subplots * 10000 * AGB / max(AGB) else rep(0, length(AGB))
-  
-  #tm<-if(!is.null(rho)) rho*subplotsize*no_subplots*10000*AGB else rep(0,length(AGB))
-  
-  ## time to delimitate plot proportional to perimeter and weighted with plot biomass
-  td <- if (!is.null(nu)) 2 * nu * pi * sqrt(subplotsize * 10000 / pi) * no_subplots * sqrt(AGB) / max(sqrt(AGB)) else rep(0, length(AGB))
-  
-  #time to request permission
-  tp<-if(!is.null(tp)) tp else rep(0,length(Nh))
-  ##Total cost per plot
-  T<-tc+tw+tm+td+tp
-  #  return(T)
-}

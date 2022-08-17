@@ -51,6 +51,8 @@ agb_class <- agb_group %>%
   bind_rows(agb_tot)
 agb_class
 
+## Calculating pixel area from Biomass map
+pix_area <- terra::res(rs_agb)[1]^2 / 100^2
 
 
 ## + + Calc sampling size ----
