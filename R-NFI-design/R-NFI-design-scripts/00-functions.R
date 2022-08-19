@@ -119,6 +119,7 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 
 
 ## + Time required for measurements ----
+
 ## Based on Picard 2007 (https://core.ac.uk/download/pdf/52632663.pdf)
 ## total_time = n_plot * (unit_time_measure + unit_time_travel)
 ## time_travel = 1 / march_speed * sqrt(area_forest / n_plot)
@@ -131,8 +132,6 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 ##  - time_travel_plot = sqrt(area_country / n_plot) / car_speed ## Formula to convert nb of plots to grid spacing.
 ##    + Can be improved with average transportation from lodging to plot + transportation from office to lodging every week or two.
 ##  - time_authorization = time to get authorization from local village and recruit workers if necessary
-
-
 calc_time <- function(unit_times, plot_design, nest_design = NULL, area_country, n_plot) {
   
   time_travel_plot    <- sqrt(area_country / n_plot) / unit_times$car_speed
@@ -172,52 +171,136 @@ calc_time <- function(unit_times, plot_design, nest_design = NULL, area_country,
 
 
 
-# ## Example values:
-# plot_design <- tibble(
-#   subplot_radius = 17.84, ## m
-#   subplot_count  = 5,      
-#   subplot_distance   = 60 ## m
-# ) %>%
-#   mutate(
-#     subplot_area   = round(pi * subplot_radius^2 /100^2, 3),
-#     plot_area      = subplot_area * subplot_count,
-#     subplot_avg_distance_L  = subplot_distance * (subplot_count - 1) * 2 / subplot_count
-#   )
-# 
-# subplot_design <- tibble(
-#   nest_level = c("nest1", "nest2", "nest3"),
-#   subplot_radius = c(18, 12, 2.5),
-#   subplot_dbh_min = c(30, 10, 2),
-#   #tree_density    = c(200, 500, 1000)
-#   tree_density    = c(300, 1000, 1500)
-# ) %>%
-#   mutate(subplot_area = round(pi * subplot_radius^2 / 100^2, 3))
-# 
-# unit_times <- tibble(
-#   march_speed = 2,             ## km/h
-#   car_speed = 10,              ## km/h
-#   unit_time_measure = 0.0035,    ## h/m^2 from Picard 2017
-#   unit_time_delineate = 0.0014, ## h/m    from Picard 2017
-#   unit_time_authorization = 2  ## h
-# )
-# 
-# unit_times_nest <- tibble(
-#   nest_level = c("nest1", "nest2", "nest3"),
-#   unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
-# )
-# 
-# nest_design <- subplot_design %>%
-#   left_join(unit_times_nest, by = "nest_level") %>%
-#   mutate(
-#     unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
-#     time_measure      = subplot_area * 100^2 * unit_time_measure  ## h
-#     ) 
-# nest_design
-# 
-# area_country <- 15000 ## ha
-# n_plot <- 200  
-# 
-# tt <- calc_time(unit_times = unit_times, plot_design = plot_design, nest_design = nest_design, area_country = 15000, n_plot = 400)
-# tt
+## + Optimize design ----
+
+## Function to calculate NFI design for all combinations of user input plot 
+## parameters. Steps:
+## - Select a set of parameters and add subplot areas and distance
+## - Calc CV to calculate the expected CV based on input parameters
+## - Use calc_time() to calculate the time cost of measuring each plot based on input parameters
+optimize_design <- function(params_input, nest_input, unit_times, CV_input, area_input){
+  
+  ## 1. Make a table of unique param combinations and add subplot characteristics
+  ## !!! Average distance only accept "L" plot shape for now but structure ready for the other shapes
+  params_combi <- expand.grid(params_input) %>%
+    as_tibble(.) %>%
+    mutate(across(where(is.double), as.integer)) %>%
+    mutate(across(where(is.factor), as.character)) %>%
+    mutate(id = 1:nrow(.)) %>%
+    select(id, everything()) %>%
+    mutate(
+      subplot_area     = round(pi * nest1_radius^2 /100^2, 3),
+      subplot_distance = distance_multiplier * nest1_radius,
+      subplot_avg_distance = case_when(
+        subplot_count == 1 ~ subplot_distance,
+        plot_shape == "L"  ~ as.integer(subplot_distance * (subplot_count - 1) * 2 / subplot_count),
+        TRUE ~ NA_integer_
+      )
+    )
+  
+  ## 2. Calculate CV and cost for all combinations of input parameters
+  results_combi <- map(1:nrow(params_combi), function(x){
+    
+    if (x == round(x/50)*50) print(paste("calculating combination ", x, "out of ", nrow(params_combi)))
+    
+    ## 2.1 Select one set of params  
+    params <- params_combi %>% slice(x)
+    
+    ## 2.2 Complete nested design params
+    if (is.na(params$nest2_radius)) {
+      nest_design <- NULL
+    } else {
+      nest_design <- tibble(
+        nest_level = c("nest1", "nest2", "nest3"),
+        nest_radius = c(params$nest1_radius, params$nest2_radius, 2.5)
+      ) %>%
+        left_join(nest_input, by = "nest_level") %>%
+        mutate(
+          id = params$id,
+          nest_area         = round(pi * nest_radius^2 / 100^2, 3),
+          unit_time_measure = tree_density * unit_time_measure / (60 * 100^2), ## h/m2
+          time_measure      = nest_area * 100^2 * unit_time_measure  ## h
+        ) %>%
+        select(id, everything())
+    } ## End if
+    
+    ## 2.3 Calc CV 
+    CV_output <- CV_input %>%
+      mutate(
+        CV_init_area_corr = if_else(CV_init_area > 1, 1, CV_init_area), ## assumption that CV is constant after 1 ha
+        CV_area = params$subplot_area * params$subplot_count,
+        CV = sqrt(CV_init^2 * (CV_init_area_corr / CV_area)^0.5) ## Lynch 2017 https://academic.oup.com/forestry/article/90/2/211/2605853
+      )
+    
+    ## 2.3 Calc number of plots
+    n_plot <- round((CV_output$CV * qt(.95, df=Inf) / params$allowable_error)^2)
+    
+    grid_spacing <- ceiling(sqrt(area_input$area_forest / n_plot))
+    
+    ## 2.4 Calc time to measure one plot
+    plot_time <- calc_time(
+      unit_times = unit_times, 
+      plot_design = params, 
+      nest_design = nest_design, 
+      area_country = area_input$area_country, 
+      n_plot = n_plot
+    ) %>%
+      mutate(id = params$id) %>%
+      select(id, everything())
+    
+    ## 2.5 Total time cost
+    total_time <- plot_time$plot_time * n_plot / (unit_times$working_hours * unit_times$working_days)
+    
+    ## 2.6 Output
+    list(
+      params = params %>%
+        mutate(CV = CV_output$CV, n_plot = n_plot, grid_spacing = grid_spacing, plot_time = plot_time$plot_time, total_time = total_time  
+        ),
+      plot_time = plot_time,
+      nest_time = nest_design
+    )
+    
+  }) ## End optimization loop
+  
+  ## 3. Arrange outputs
+  params_combi <- map_dfr(1:nrow(params_combi), function(i){
+    results_combi[[i]]$params
+  })
+  
+  plot_times_combi <- map_dfr(1:nrow(params_combi), function(i){
+    results_combi[[i]]$plot_time
+  })
+  
+  nest_design_combi <- map_dfr(1:nrow(params_combi), function(i){
+    results_combi[[i]]$nest_time
+  })
+  
+  ## Calculate 10 best for cost and CV
+  params_filter <- params_combi %>%
+    filter(total_time <= 24, plot_time <= 15, allowable_error == 10)
+  
+  best_CV <- params_filter %>%
+    arrange(CV) %>%
+    slice_head(n = 10) %>%
+    mutate(type = "Lowest CV") %>%
+    select(type, everything())
+  
+  best_time <- params_filter %>%
+    arrange(total_time) %>%
+    slice_head(n = 10) %>%
+    mutate(type = "Lowest cost") %>%
+    select(type, everything())
+  
+  solutions <- bind_rows(best_CV, best_time)
+  
+  ## 4. Outputs
+  list(
+    params = params_combi,
+    plot_time = plot_times_combi,
+    nest_design = nest_design_combi,
+    solutions = solutions
+  )
+  
+} ## End function optimize design
 
 
