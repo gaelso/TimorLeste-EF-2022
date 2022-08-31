@@ -134,7 +134,7 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
 ##  - time_authorization = time to get authorization from local village and recruit workers if necessary
 calc_time <- function(unit_times, plot_design, nest_design = NULL, area_country, n_plot) {
   
-  time_travel_plot    <- sqrt(area_country / n_plot) / unit_times$car_speed
+  time_travel_plot    <- sqrt(area_country / n_plot) * 4 / unit_times$car_speed
   
   time_travel_subplot <- plot_design$subplot_avg_distance * plot_design$subplot_count / (unit_times$march_speed * 1000)
   

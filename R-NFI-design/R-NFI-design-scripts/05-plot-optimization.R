@@ -24,7 +24,7 @@ params_input <- list(
   nest1_radius        = c(15:20),
   nest2_radius        = c(8:12),
   plot_shape          = c("L"),
-  allowable_error     = c(1, 5, 10, 20)
+  allowable_error     = c(10) ## %
 )
 
 ## + Nested plot tree characteristics
@@ -32,7 +32,7 @@ nest_input <- tibble(
   nest_level = c("nest1", "nest2", "nest3"),
   nest_dbh_min = c(30, 10, 2),
   #tree_density    = c(200, 500, 1000)
-  tree_density    = c(300, 1000, 1500),
+  tree_density    = c(300, 1000, 1500), ## nb trees / ha
   unit_time_measure = c(3, 2, 0.5)  ## in nb min /tree
 )
 
@@ -42,7 +42,7 @@ unit_times <- tibble(
   car_speed               = 10,     ## km/h
   unit_time_measure       = 0.0035, ## h/m^2 from Picard 2017
   unit_time_delineate     = 0.0014, ## h/m    from Picard 2017
-  unit_time_authorization = 2,      ## h
+  unit_time_authorization = 5,      ## h
   working_hours           = 9,      ## h/day
   working_days            = 20,     ## days/month
 )
@@ -55,8 +55,8 @@ CV_input <- tibble(
 
 ## + Areas 
 area_input <- list(
-  area_country = 15000, ## ha
-  area_forest  = 9323   ## ha
+  area_country = 15000, ## km^2
+  area_forest  = 9323   ## km^2
 )
 
 
@@ -69,6 +69,36 @@ res_opti <- optimize_design(
   )
 
 tt <- res_opti$solutions
+
+tt2 <- res_opti$params
+
+summary(tt2)
+
+res_opti$plot_time
+
+tt2 %>%
+  filter(nest2_radius == 10, allowable_error == 10, distance_multiplier == 2) %>%
+  ggplot(aes(x = nest1_radius, y = subplot_count)) +
+  geom_tile(aes(fill = total_time)) +
+  scale_fill_viridis_c() +
+  geom_contour(aes(z = n_plot, colour = after_stat(level)), binwidth = 50, size = 1) +
+  scale_color_gradient2(low = "black", high = "darkred", mid = "yellow", midpoint = 400) +
+  # geom_contour(data = grid_nsamp2, aes(z = z, colour = after_stat(level)), binwidth = 50, size = 1) +
+  # scale_color_gradient2(low = "darkgreen", high = "darkred", mid = "yellow") +
+  
+  labs(
+    fill = "N weeks", 
+    color = "N plot", 
+    x = "Subplot radius (m)", 
+    y = "Number of subplots"
+  )
+
+
+tt3 <- tt2 %>%
+  filter(n_plot > 190, n_plot < 210, subplot_count == 3)
+
+tt4 <- res_opti$plot_time %>%
+  filter(id == 38)
 
 # 
 # 

@@ -13,6 +13,8 @@ sf_district <- st_read("data/GIS/Districts/13districts.shp")
 
 sf_country <- sf_district %>% summarise()
 
+## Save country as geoJSON
+#st_write(sf_country, "data/GIS/TimorLeste.geoJSON")
 
 ## + JICA land cover ----
 
@@ -116,6 +118,15 @@ df_jica100 <- as.data.frame(rs_jica100, xy = TRUE) %>%
 # plot(rs_jica)
 # plot(rs_agb)
  
+ggplot() +
+  geom_raster(data = df_agb, aes(x = x, y = y, fill = agb_avitabile)) +
+  scale_fill_viridis_c(limits = c(0, 500), direction = -1) +
+  geom_sf(data = sf_country, fill = NA, col = "darkred", size = 1) +
+  theme_bw() +
+  labs(x = "", y = "", fill = "AGB (ton/ha)", title = "Avitabile et al. 2016 aboveground biomass") +
+  theme(legend.position = "bottom")
+
+terra::res(rs_agb)[1]^2 / 100^2
 
 
 ## + Remove objects ----
