@@ -114,6 +114,7 @@ lm1 <- lm(cv ~ log(total_time), data = tt2)
 
 coef(lm1)
 predict(lm1)
+
 tt3 <- tt2 %>%
   mutate(cv_pred = coef(lm1)[1] + log(total_time) * coef(lm1)[2])
 

@@ -104,6 +104,35 @@ offset <- st_bbox(sf_country)[c("xmin", "ymin")] + c(x_init, y_init)
 
 ## ++ Test grids 4, 6 and 8 km ---
 
+grid1 <- make_grid(
+  spacing_km = 1, 
+  offset = offset, 
+  square = F, 
+  raster = rs_jica,
+  forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
+  forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
+)
+
+grid1$n_plot_forest
+sum(grid1$n_plot$n)
+
+
+grid2 <- make_grid(
+  spacing_km = 2, 
+  offset = offset, 
+  square = F, 
+  raster = rs_jica,
+  forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
+  forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
+)
+
+grid2$n_plot_forest
+sum(grid2$n_plot$n)
+
+grid2$gr_forest
+
+
+
 grid4 <- make_grid(
   spacing_km = 4, 
   offset = offset, 
@@ -135,7 +164,8 @@ grid8 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-grid8$gr_forest
+grid8$gr_forest +
+  geom_sf(data = grid8$points[sf_country, ], size = 0.6)
 grid8$n_plot_forest
 
 n_plot05

@@ -13,6 +13,7 @@ sf_district <- st_read("data/GIS/Districts/13districts.shp")
 
 sf_country <- sf_district %>% summarise()
 
+st_area(sf_country)
 ## Save country as geoJSON
 #st_write(sf_country, "data/GIS/TimorLeste.geoJSON")
 
@@ -50,7 +51,7 @@ levels(rs_jica) <- jica_lc$lc
 names(rs_jica) <- "lc"
 
 ## Checks
-# plot(rs_jica, col=jica_lc$hex)
+plot(rs_jica, col=jica_lc$hex)
 # plot(sf_country, add=T)
 # summary(rs_jica)
 # cats(rs_jica)
@@ -111,6 +112,12 @@ df_jica100 <- as.data.frame(rs_jica100, xy = TRUE) %>%
 
 
 ## + Checks ----
+
+ggplot() +
+  geom_raster(data = df_jica, aes(x = x, y = y, fill = lc)) +
+  geom_sf(data = sf_country, fill = NA, col = "darkred", size = 1) +
+  theme_bw() +
+  theme(legend.position = "bottom")
 
 # rs_jica
 # rs_agb
