@@ -156,29 +156,29 @@ ggplot() +
 
 
 
-## Checking mongolia
-tt <- read_csv("data/GIS/test-mongolia/equalDistanceGrid1000meters.csv")
-
-sf_tt <- st_as_sf(tt, coords = c("X", "Y"), crs = 4326)
-
-sf_mng         <- st_read("data/GIS/gadm/gadm36_0.shp") %>% filter(GID_0 == "MNG")
-sf_mng_32645   <- st_transform(sf_mng, crs = 32645) #%>% select(geometry)
-sf_points_mng  <- st_make_grid(x = sf_mng_32645, cellsize = c(1000, 1000), what = "centers", square = TRUE)
-
-
-sf_points_mng2 <- st_join(sf_points_mng, sf_mng_32645)
-
-#sf_points_mng3 <- st_intersection(sf_points_mng, sf_mng_32645) 
-#sf_points_mng[st_intersects(sf_points_mng, sf_mng_32645),]
-
-sf_points_mng2 <- sf_points_mng[st_within(sf_points_mng, sf_mng_32645) %>% lengths > 0, ] 
-
-#df <- df[st_within(df, box) %>% lengths > 0,]
-
-ggplot() +
-  geom_sf(data = sf_mng, fill = NA, color = "red") +
-  geom_sf(data = sf_tt, size = 0.5, pch = 1) +
-  geom_sf(data = sf_points_mng, size = 0.5, pch = 3)
+# ## Checking mongolia
+# tt <- read_csv("data/GIS/test-mongolia/equalDistanceGrid1000meters.csv")
+# 
+# sf_tt <- st_as_sf(tt, coords = c("X", "Y"), crs = 4326)
+# 
+# sf_mng         <- st_read("data/GIS/gadm/gadm36_0.shp") %>% filter(GID_0 == "MNG")
+# sf_mng_32645   <- st_transform(sf_mng, crs = 32645) #%>% select(geometry)
+# sf_points_mng  <- st_make_grid(x = sf_mng_32645, cellsize = c(1000, 1000), what = "centers", square = TRUE)
+# 
+# 
+# sf_points_mng2 <- st_join(sf_points_mng, sf_mng_32645)
+# 
+# #sf_points_mng3 <- st_intersection(sf_points_mng, sf_mng_32645) 
+# #sf_points_mng[st_intersects(sf_points_mng, sf_mng_32645),]
+# 
+# sf_points_mng2 <- sf_points_mng[st_within(sf_points_mng, sf_mng_32645) %>% lengths > 0, ] 
+# 
+# #df <- df[st_within(df, box) %>% lengths > 0,]
+# 
+# ggplot() +
+#   geom_sf(data = sf_mng, fill = NA, color = "red") +
+#   geom_sf(data = sf_tt, size = 0.5, pch = 1) +
+#   geom_sf(data = sf_points_mng, size = 0.5, pch = 3)
 
 
 #############################################################################
