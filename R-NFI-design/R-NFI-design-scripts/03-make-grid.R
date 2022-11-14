@@ -113,8 +113,75 @@ grid1 <- make_grid(
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
 )
 
-grid1$n_plot_forest
-sum(grid1$n_plot$n)
+grid1$points
+grid1$plot
+
+
+
+##
+##### Making 1 km  grid for Activity Data ###################################
+##
+
+# st_coordinates(grid1$plot)[,1]
+
+tt <- grid1$plot %>% 
+  mutate(
+    x_coord = st_coordinates(.)[,1],
+    y_coord = st_coordinates(.)[,2],
+    ) %>%
+  st_drop_geometry() %>%
+  as_tibble() %>%
+  select(ID, x_coord, y_coord, lc_jica2010 = lc)
+
+tt2 <- tt %>%
+  group_by(lc_jica2010) %>%
+  summarise(count = n())
+
+res_path <- paste0("results/grid_square_1km_random_offset_", str_replace(st_crs(grid1$plot)$srid, ":", "_"))
+write_csv(tt, paste0(res_path, ".csv"))
+write_csv(tt2, paste0(res_path, "_stats_jica2010.csv"))
+
+ggplot() +
+  geom_sf(data = sf_country, col = "red", fill = NA) +
+  geom_point(data = tt, aes(x = x_coord, y = y_coord, color = lc_jica2010), size = 0.5)
+# 
+# 
+# ggplot() +
+#   geom_sf(data = sf_country, col = "red", fill = NA) +
+#   geom_sf(data = grid2$plot, aes(color = lc), size = 0.5)
+# 
+# 
+# st_crs(grid1$plot)$srid
+
+
+
+
+## Checking mongolia
+tt <- read_csv("data/GIS/test-mongolia/equalDistanceGrid1000meters.csv")
+
+sf_tt <- st_as_sf(tt, coords = c("X", "Y"), crs = 4326)
+
+sf_mng         <- st_read("data/GIS/gadm/gadm36_0.shp") %>% filter(GID_0 == "MNG")
+sf_mng_32645   <- st_transform(sf_mng, crs = 32645) #%>% select(geometry)
+sf_points_mng  <- st_make_grid(x = sf_mng_32645, cellsize = c(1000, 1000), what = "centers", square = TRUE)
+
+
+sf_points_mng2 <- st_join(sf_points_mng, sf_mng_32645)
+
+#sf_points_mng3 <- st_intersection(sf_points_mng, sf_mng_32645) 
+#sf_points_mng[st_intersects(sf_points_mng, sf_mng_32645),]
+
+sf_points_mng2 <- sf_points_mng[st_within(sf_points_mng, sf_mng_32645) %>% lengths > 0, ] 
+
+#df <- df[st_within(df, box) %>% lengths > 0,]
+
+ggplot() +
+  geom_sf(data = sf_mng, fill = NA, color = "red") +
+  geom_sf(data = sf_tt, size = 0.5, pch = 1) +
+  geom_sf(data = sf_points_mng, size = 0.5, pch = 3)
+
+
+#############################################################################
 
 
 grid2 <- make_grid(
@@ -126,10 +193,10 @@ grid2 <- make_grid(
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
 )
 
-grid2$n_plot_forest
-sum(grid2$n_plot$n)
-
-grid2$gr_forest
+# grid2$n_plot_forest
+# sum(grid2$n_plot$n)
+# 
+# grid2$gr_forest
 
 
 
@@ -141,8 +208,8 @@ grid4 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-grid4$gr_forest
-grid4$n_plot_forest
+# grid4$gr_forest
+# grid4$n_plot_forest
 
 
 grid6 <- make_grid(
@@ -153,8 +220,8 @@ grid6 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-grid6$gr_forest
-grid6$n_plot_forest
+# grid6$gr_forest
+# grid6$n_plot_forest
 
 grid8 <- make_grid(
   spacing_km = 8, 
@@ -164,21 +231,21 @@ grid8 <- make_grid(
   forest_classes = c("Dense forest", "Sparse forest", "Very sparse forest"),
   forest_colors = jica_lc %>% filter(new_code %in% 0:2) %>% pull(hex)
   )
-grid8$gr_forest +
-  geom_sf(data = grid8$points[sf_country, ], size = 0.6)
-grid8$n_plot_forest
-
-n_plot05
-n_plot10
+# grid8$gr_forest +
+#   geom_sf(data = grid8$points[sf_country, ], size = 0.6)
+# grid8$n_plot_forest
+# 
+# n_plot05
+# n_plot10
 
 
 ## Overlap grids
 
-ggplot() +
-  geom_sf(data = sf_country, fill = NA, size = 1) +
-  geom_sf(data = grid8$grid, fill = NA, color = "darkorange", size = 0.6) +
-  geom_sf(data = grid4$grid, fill = NA, color = "orange") +
-  labs(fill = NULL)
+# ggplot() +
+#   geom_sf(data = sf_country, fill = NA, size = 1) +
+#   geom_sf(data = grid8$grid, fill = NA, color = "darkorange", size = 0.6) +
+#   geom_sf(data = grid4$grid, fill = NA, color = "orange") +
+#   labs(fill = NULL)
   
 
 ## END ##
