@@ -46,8 +46,8 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
     sf_plot <- terra::extract(raster, vect(sf_points2))
     
     sf_points3 <- sf_points2 %>%
-      bind_cols(sf_plot) %>%
-      filter(lc %in% forest_classes)
+      bind_cols(sf_plot) #%>%
+      #filter(lc %in% forest_classes)
     
     sf_grid3 <- sf_grid2 %>%
       bind_cols(sf_plot) %>%
@@ -108,7 +108,7 @@ make_grid <- function(spacing_km = 10, offset = NULL, square = FALSE, raster = r
   } else {
     
     list(
-      grid = sf_grid2, points = sf_points, graph = gr_grid, plot = sf_plot, 
+      grid = sf_grid2, points = sf_points, graph = gr_grid, plot = sf_points3, 
       n_plot = n_plot, n_plot_forest = n_plot_forest, gr_forest = gr_forest
     )
     
