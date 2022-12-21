@@ -2,10 +2,11 @@
 library(tidyverse)
 
 #file_path <- "data/Activity data/Export_results_all"
-file_path <- "data/Activity data/Activity Data Results"
+file_path <- "data/Activity data/Export_results_gmail"
 
 ## Load data
 ad_files <- list.files(path = file_path, pattern = ".csv", recursive = T, full.names = T)
+ad_files
 
 survey_name <- ad_files %>%
   str_remove(".*/") %>%
@@ -29,11 +30,10 @@ tt <- map_dfr(ad_files, function(x){
   
 })
 
-names(tt)
-
-str_subset(string = names(tt), pattern = "year")
-str_subset(string = names(tt), pattern = "actively_saved")
-str_subset(string = names(tt), pattern = "file")
+# names(tt)
+# str_subset(string = names(tt), pattern = "year")
+# str_subset(string = names(tt), pattern = "actively_saved")
+# str_subset(string = names(tt), pattern = "file")
 
 
 ## Check ID
@@ -57,7 +57,6 @@ test3 <- test2 %>%
     actively_saved_on_year, actively_saved_on_month, actively_saved_on_day
     )
 
-
 ## Solve issues with data format and add info
 tt2 <- tt %>%
   mutate(
@@ -74,8 +73,7 @@ tt2 <- tt %>%
     duplicate_records = if_else(id %in% vec, TRUE, FALSE),
     group_chr = plot_file %>% str_remove(".*_") %>% str_remove(" \\(1\\).csv") %>% str_remove(".csv"),
     group = as.numeric(group_chr)
-    ) %>%
-  filter(!is.na(id), !is.na(group))
+    ) 
 
 write_csv(tt2, "results/all_data.csv")
 
@@ -83,8 +81,31 @@ table(tt2$duplicate_records)
 table(tt2$group_chr, useNA = "ifany")
 table(tt2$group, useNA = "ifany")
 
-## Check duplicates again
+##
+## Checks on combined data to find and remove duplicates
+##
+
+## Check wrong IDs or group not from 1 to 8
+test <- tt %>% 
+  mutate(id_num = as.numeric(id)) %>%
+  filter(is.na(id_num)) %>%
+  select(id, id_num)
+
+## Check wrong group
+table(tt2$group_chr, tt2$group, useNA = "ifany")
+
+## Add max date to keep only latest record for duplicates
+max_date <- tt2 %>%
+  group_by(id) %>%
+  summarise(max_date = max(survey_date))
+
+## Check duplicates based on group
+tt2 %>% distinct(id, .keep_all = T) %>% nrow()
+tt2 %>% distinct(id, group, .keep_all = T) %>% nrow()
+
 test <- tt2 %>%
+  filter(!is.na(id), !is.na(group)) %>%
+  #  distinct(id, group, .keep_all = T) %>%
   group_by(id, group) %>%
   summarise(count = n())
 
@@ -92,14 +113,14 @@ table(test$group, test$count)
 
 test2 <- tt2 %>%
   distinct(id, group, .keep_all = T)
-  
+
 ## Check ids and groups
 test <- tt2 %>%
+  filter(!is.na(id), !is.na(group)) %>%
   select(id, group) %>%
   distinct(id, group) %>%
   group_by(id) %>%
-  summarise(count = n(), .groups = "drop") %>%
-  filter(count > 1)
+  summarise(count = n(), .groups = "drop")
 
 table(test$count)
 
@@ -108,7 +129,8 @@ vec <- test %>%
   pull(id) %>% 
   unique()  
 
-id_group_dup <- tt2 %>% 
+id_group_dup <- tt2 %>%
+  filter(!is.na(id), !is.na(group)) %>%
   filter(id %in% vec) %>%
   distinct(id, group, .keep_all = T) %>%
   select(id, group, operator, plot_file, file_name, survey_date) %>%
@@ -116,18 +138,30 @@ id_group_dup <- tt2 %>%
 
 write_csv(id_group_dup, "results/id_group_duplicates.csv")
 
+file_rm <- tt2 %>% 
+  filter(id %in% vec) %>%
+  filter(group == 5) %>%
+  pull(file_name) %>%
+  unique()
 
-max_date <- tt2 %>%
-  group_by(id) %>%
-  summarise(max_date = max(survey_date))
+## Cross check group to remove
+test <- tt2 %>% 
+  filter(group == 5) %>%
+  select(operator, plot_file, file_name) %>%
+  distinct()
 
+## Remove missing IDs and group plus keep only max date for records
+## And use distinct() fro further removing duplicates
 tt3 <- tt2 %>%
+  filter(!is.na(id), !is.na(group)) %>%
+  filter(!(group == 5 & file_name %in% file_rm)) %>%
   left_join(max_date, by = "id") %>%
   filter(!(duplicate_records & survey_date != max_date)) %>%
-  select(-survey_month, -survey_day, -survey_date, -duplicate_records, -max_date) %>%
-  arrange(id) %>%
-  distinct(id, .keep_all = T)
-tt3
+  select(-survey_month, -survey_day, -duplicate_records, -max_date) %>%
+  distinct(id, group, .keep_all = T)
+tt3 
+
+write_csv(tt3, paste0("results/sbae_2km_TL_clean_", Sys.Date(), ".csv"))
 
 
 ## Check for duplicates
@@ -141,8 +175,15 @@ vec <- test %>%
   filter(count > 1) %>%
   pull(id)
 
-write_csv(tt3, paste0("results/sbae_2km_TL_clean_", Sys.Date(), ".csv"))
+test2 <- tt3 %>%
+  filter(id %in% vec) %>%
+  arrange(id) %>%
+  select(id, group, operator, surveyor_name, file_name, plot_file)
 
+tt2 %>%
+  filter(group == 5) %>%
+  select(operator, surveyor_name, file_name, plot_file) %>%
+  distinct()
 
 
 ##
