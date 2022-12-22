@@ -1,10 +1,14 @@
 
 library(tidyverse)
 
+##
+## Load data in R ######
+##
+
 #file_path <- "data/Activity data/Export_results_all"
 file_path <- "data/Activity data/Export_results_gmail"
 
-## Load data
+## List files data
 ad_files <- list.files(path = file_path, pattern = ".csv", recursive = T, full.names = T)
 ad_files
 
@@ -13,6 +17,7 @@ survey_name <- ad_files %>%
   str_remove("_.*") %>%
   unique()
 
+## Load and combine
 tt <- map_dfr(ad_files, function(x){
   
   surveyor_name <- x %>%
@@ -201,8 +206,8 @@ table(test$count)
 ## Compa with original grid
 ##
 
-sbae_original <- read_csv(list.files("data/Activity data/Original grid", full.names = T))
-sbae_original
+# sbae_original <- read_csv(list.files("data/Activity data/Original grid", full.names = T))
+# sbae_original
 
 ## Find operators for missing points
 ce_files <- list.files(
