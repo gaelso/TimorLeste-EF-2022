@@ -73,7 +73,8 @@ tt2 <- tt %>%
     duplicate_records = if_else(id %in% vec, TRUE, FALSE),
     group_chr = plot_file %>% str_remove(".*_") %>% str_remove(" \\(1\\).csv") %>% str_remove(".csv"),
     group = as.numeric(group_chr)
-    ) 
+    ) %>%
+  select(id, group, group_chr, operator, surveyor_name, plot_file, file_name, everything())
 
 write_csv(tt2, "results/all_data.csv")
 
@@ -93,6 +94,9 @@ test <- tt %>%
 
 ## Check wrong group
 table(tt2$group_chr, tt2$group, useNA = "ifany")
+
+## Check date
+table(tt2$survey_date, tt2$group_chr, useNA = "ifany")
 
 ## Add max date to keep only latest record for duplicates
 max_date <- tt2 %>%
@@ -155,14 +159,20 @@ test <- tt2 %>%
 tt3 <- tt2 %>%
   filter(!is.na(id), !is.na(group)) %>%
   filter(!(group == 5 & file_name %in% file_rm)) %>%
-  left_join(max_date, by = "id") %>%
-  filter(!(duplicate_records & survey_date != max_date)) %>%
-  select(-survey_month, -survey_day, -duplicate_records, -max_date) %>%
-  distinct(id, group, .keep_all = T)
+  #left_join(max_date, by = "id") %>%
+  #filter(survey_date == max_date) %>%
+  select(-survey_month, -survey_day, -duplicate_records) %>%
+  distinct(id, .keep_all = T)
 tt3 
 
 write_csv(tt3, paste0("results/sbae_2km_TL_clean_", Sys.Date(), ".csv"))
 
+## Check fro removed IDs
+tt2 %>%
+  filter(!is.na(id)) %>%
+  pull(id) %>%
+  unique() %>%
+  length()
 
 ## Check for duplicates
 test <- tt3 %>%
@@ -171,19 +181,20 @@ test <- tt3 %>%
 
 table(test$count)
 
-vec <- test %>%
-  filter(count > 1) %>%
-  pull(id)
-
-test2 <- tt3 %>%
-  filter(id %in% vec) %>%
-  arrange(id) %>%
-  select(id, group, operator, surveyor_name, file_name, plot_file)
-
-tt2 %>%
-  filter(group == 5) %>%
-  select(operator, surveyor_name, file_name, plot_file) %>%
-  distinct()
+## If still has duplicates
+# vec <- test %>%
+#   filter(count > 1) %>%
+#   pull(id)
+# 
+# test2 <- tt3 %>%
+#   filter(id %in% vec) %>%
+#   arrange(id) %>%
+#   select(id, group, operator, surveyor_name, file_name, plot_file)
+# 
+# tt2 %>%
+#   filter(group == 5) %>%
+#   select(operator, surveyor_name, file_name, plot_file) %>%
+#   distinct()
 
 
 ##
@@ -227,28 +238,35 @@ test <- ce_points %>%
   filter(id %in% unique(id_group_dup$id)) 
 
 
-
-
-
 tt5 <- tt3 %>%
-  select(id, operator) %>%
+  select(id, operator, surveyor_name) %>%
   full_join(ce_points, by = "id") %>%
   arrange(id)
 tt5
 
 table(tt5$operator, tt5$group, useNA= "ifany")
+table(tt5$surveyor_name, tt5$group, useNA= "ifany")
 
 list_missing_ids <- tt5 %>%
-  filter(is.na(operator)) %>%
-  select(-operator, group, id, everything()) %>%
-  arrange(group, id)
+  filter(is.na(surveyor_name)) %>%
+  select(-operator) %>%
+  select(id, group, everything()) %>%
+  arrange(id, group)
+
+list_missing_ids
 
 write_csv(list_missing_ids, "results/list_missing_ids.csv")
 
 
-## Check again what point from which group
-tt 
+## Check again if points in source files
+test <- tt2 %>% 
+  filter(id %in% list_missing_ids$id) %>%
+  arrange(id) %>%
+  distinct(id, .keep_all = TRUE)
 
+write_csv(test, "results/missing ids found in orginal data.csv")
+
+## Check again what point from which group
 tt$plot_file %>% 
   str_remove(".*_") %>%
   str_remove(" \\(1\\).csv") %>%
