@@ -1,12 +1,32 @@
 
 library(tidyverse)
+library(googledrive)
+
+source("R-functions/download_ggdrive.R")
+
+drive_find(pattern = "Actity_Data", n_max = 100)
+drive_ls(path = "Actity_Data", type = "folder")
+path_to_files <- drive_ls(path = "Actity_Data/Export_results_all_versions", type = "csv")
+
+
+unlink(list.files(path = "data/activity data/AD all", full.names = T))
+
+purrr::walk(seq_along(path_to_files$id), function(x){
+  
+  drive_download(file = path_to_files$id[x], 
+                 path = file.path("data/activity data/AD all", path_to_files$name[x]), 
+                 overwrite = T
+                 )
+  
+})
+
 
 ##
 ## Load data in R ######
 ##
 
-#file_path <- "data/Activity data/Export_results_all"
-file_path <- "data/Activity data/Export_results_gmail"
+#file_path <- "data/activity data/Export_results_all"
+file_path <- "data/activity data/AD all"
 
 ## List files data
 ad_files <- list.files(path = file_path, pattern = ".csv", recursive = T, full.names = T)
@@ -206,12 +226,12 @@ table(test$count)
 ## Compa with original grid
 ##
 
-# sbae_original <- read_csv(list.files("data/Activity data/Original grid", full.names = T))
+# sbae_original <- read_csv(list.files("data/activity data/Original grid", full.names = T))
 # sbae_original
 
 ## Find operators for missing points
 ce_files <- list.files(
-  path = "data/Activity data/Original grid/TimorLeste_points_hex_2km_CE.csv_8_random/div_8", 
+  path = "data/activity data/Original grid/TimorLeste_points_hex_2km_CE.csv_8_random/div_8", 
   pattern = ".csv", 
   full.names = T
   )
@@ -229,14 +249,26 @@ ce_points <- map_dfr(ce_files, function(x){
   
   tt <- read_csv(x, col_types = list(.default = "c")) %>%
     mutate(
-      group = group,
-      id = as.numeric(id)
+      group      = group,
+      id         = as.numeric(id),
+      no         = 1:nrow(.),
+      no_ingroup = case_when(
+        no < 10   ~ paste0(group, "_000", no),
+        no < 100  ~ paste0(group, "_00", no),
+        no < 1000 ~ paste0(group, "_0", no),
+        TRUE      ~ paste0(group, "_", no)
+        )
       )
   
 }) %>%
+  select(id, group, no, no_ingroup, everything()) %>%
   arrange(id)
 
 ce_points
+
+test <- ce_points %>%
+  mutate(no = 1:nrow(.)) %>%
+  select(no, everything())
 
 ## Check problems with group
 test <- ce_points %>%
@@ -254,38 +286,38 @@ table(tt5$surveyor_name, tt5$group, useNA= "ifany")
 
 list_missing_ids <- tt5 %>%
   filter(is.na(surveyor_name)) %>%
-  select(-operator) %>%
-  select(id, group, everything()) %>%
-  arrange(id, group)
+  select(-operator, -surveyor_name) %>%
+  select(group, no, everything()) %>%
+  arrange(group, no)
 
 list_missing_ids
 
 write_csv(list_missing_ids, "results/list_missing_ids.csv")
 
-
-## Check again if points in source files
-test <- tt2 %>% 
-  filter(id %in% list_missing_ids$id) %>%
-  arrange(id) %>%
-  distinct(id, .keep_all = TRUE)
-
-write_csv(test, "results/missing ids found in orginal data.csv")
-
-## Check again what point from which group
-tt$plot_file %>% 
-  str_remove(".*_") %>%
-  str_remove(" \\(1\\).csv") %>%
-  str_remove(".csv")
-  
-tt$plot_file %>% str_detect("Aileu")
-
-list.files(path = file_path, pattern = "Aileu", recursive = T, full.names = T)
-
-test <- tt %>%
-  mutate(check_file = if_else(str_detect(plot_file, "Aileu"), 1, 0))
-
-table(test$check_file)
-
-test2 <- test %>% filter(check_file == 1)
-write_csv(test2, "results/check_plot_file_errors.csv")
+# ## IF PLOTS STILL MISSING
+# ## Check again if points in source files
+# test <- tt2 %>% 
+#   filter(id %in% list_missing_ids$id) %>%
+#   arrange(id) %>%
+#   distinct(id, .keep_all = TRUE)
+# 
+# write_csv(test, "results/missing ids found in orginal data.csv")
+# 
+# ## Check again what point from which group
+# tt$plot_file %>% 
+#   str_remove(".*_") %>%
+#   str_remove(" \\(1\\).csv") %>%
+#   str_remove(".csv")
+#   
+# tt$plot_file %>% str_detect("Aileu")
+# 
+# list.files(path = file_path, pattern = "Aileu", recursive = T, full.names = T)
+# 
+# test <- tt %>%
+#   mutate(check_file = if_else(str_detect(plot_file, "Aileu"), 1, 0))
+# 
+# table(test$check_file)
+# 
+# test2 <- test %>% filter(check_file == 1)
+# write_csv(test2, "results/check_plot_file_errors.csv")
 
