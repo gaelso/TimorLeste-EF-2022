@@ -133,6 +133,14 @@ ggplot() +
   coord_sf(crs = 32751) + #coord_sf(crs = "ESRI:54017")
   labs(fill = "Year of afforestation")
 
+ggplot() +
+  geom_sf(data = sf_af, aes(fill = lu_change_year)) +
+  geom_sf(data = sf_aoi_metric, fill = NA, col= "red") +
+  scale_fill_viridis_c() +
+  coord_sf(crs = 32751) + #coord_sf(crs = "ESRI:54017")
+  labs(fill = "Year of afforestation")
+
+
 ggplot() + 
   geom_sf(data = sf_ad, aes(fill = redd_activity)) +
   geom_sf(data = sf_aoi_metric, fill = NA, col= "red") +
