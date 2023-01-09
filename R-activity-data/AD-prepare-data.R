@@ -47,8 +47,14 @@ lu_cat_sub <- tt %>%
   distinct() %>%
   arrange(lu_cat)
 lu_cat_sub
- 
-ad_point <- tt %>%
+
+## Remove the detailed percentages and add to the data:
+## + Main category of origin
+## + Sorted categories (fct)
+## + REDD Activity
+## + Year of deforestation
+## + Year of afforestation
+ce_points <- tt %>%
   select(
     id,
     group,
@@ -77,21 +83,23 @@ ad_point <- tt %>%
     lu_cat_old_fct = forcats::fct_reorder(lu_cat_old, lu_cat_old_id),
     redd_activity  = case_when(
       lu_cat_old == 'Forest' & lu_cat_new != "Forest" ~ "DF",
+      lu_cat_old != 'Forest' & lu_cat_new == "Forest" ~ "AF",
       lu_cat_new == lu_cat_old                        ~ "No change",
       TRUE ~ "Other"
-    )
+    ),
   )
 
-ad_point
+ce_points
 
-write_csv(ad_point, "results/AD_points_fromCE.csv")
+write_csv(ce_points, "results/CE_points_clean.csv")
 
-table(ad_point$lu_cat_old_fct, ad_point$lu_cat_new_fct)
-table(ad_point$lu_cat_old_fct, ad_point$lu_cat_new_fct, ad_point$lu_change_year)
-table(ad_point$lu_change)
-table(ad_point$redd_activity, ad_point$lu_change_year)
+table(ce_points$lu_cat_old_fct, ce_points$lu_cat_new_fct)
+table(ce_points$lu_cat_old_fct, ce_points$lu_cat_new_fct, ad_point$lu_change_year)
+table(ce_points$lu_change)
+table(ce_points$redd_activity, ce_points$lu_change_year)
 
 
-## Create point count
-# ad_point_frl <- ad_point %>%
-#   group_by()
+
+
+
+
