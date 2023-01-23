@@ -223,18 +223,43 @@ tt3b <- tt3 %>%
       TRUE ~ lu_sub_new
       ),
     lu_sub_new = str_to_title(lu_sub_new),
-    lu_change_year = if_else(!is.na(land_use_subdivision_year_of_change_label), land_use_subdivision_year_of_change_label, land_use_subcategory_year_of_change_label) 
+    lu_change_year = if_else(!is.na(land_use_subdivision_year_of_change_label), land_use_subdivision_year_of_change_label, land_use_subcategory_year_of_change_label),
+    lu_sub_old = case_when(
+    is.na(lu_change_year) ~ lu_sub_new,
+    is.na(land_use_initial_subdivision_label) ~ str_sub(lu_change_code, 0, 1),
+    TRUE ~ land_use_initial_subdivision_label
+      ),
+    lu_sub_old = case_when(
+      lu_sub_old == "F" ~ lu_sub_new, ## Error change since no initial LU reported 
+      lu_sub_old == "G" ~ lu_sub_new, ## Error change since no initial LU reported
+      lu_sub_old == "S" ~ lu_sub_new, ## Error change since no initial LU reported
+      lu_sub_old == "O" ~ "Other Land",
+      lu_sub_old == "C" ~ "Cropland",
+      lu_sub_old == "Moist high land forest"   ~ "Moist Highland forest",
+      lu_sub_old == "Infrastructure"           ~ "Settlements",
+      lu_sub_old == "Settlement"               ~ "Settlements",
+      lu_sub_old == "Lakes/Lagoons/Reservoirs" ~ "Wetlands",
+      lu_sub_old == "River"                    ~ "Wetlands",
+      lu_sub_old == "Mining"                   ~ "Other Land",
+      lu_sub_old == "Other bareland"           ~ "Other Land",
+      lu_sub_old == "Rocks"                    ~ "Other Land",
+      lu_sub_old == "Sand"                     ~ "Other Land",
+      TRUE ~ lu_sub_old
+      ),
+    lu_sub_old = str_to_title(lu_sub_old)
     )
 
 
-
 table(tt3$land_use_subdivision_label, useNA = "ifany")
+table(tt3$land_use_subcategory, tt3$land_use_subdivision_label, useNA = "ifany")
 table(tt3$land_use_subcategory, useNA = "ifany")
 
 table(tt3b$lu_cat_new, useNA = "ifany")
 table(tt3b$lu_change_code, useNA = "ifany")
 table(tt3b$lu_sub_new, useNA = "ifany")
 table(tt3b$lu_change_year, useNA = "ifany")
+
+table(tt3b$lu_sub_old, useNA = "ifany")
 
 ## Check removed IDs
 tt2 %>%
