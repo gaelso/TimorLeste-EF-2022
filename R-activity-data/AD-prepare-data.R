@@ -5,11 +5,14 @@ library(sf)
 ## Read clean data
 list.files("results", pattern = "sbae_2km")
 
-tt <- read_csv("results/sbae_2km_TL_clean_2023-01-05.csv")
+tt <- read_csv("results/sbae_2km_TL_clean_2023-01-13.csv")
 tt
 
-lu_conv <- read_csv("data/activity data/land_use_names.csv")
+lu_conv <- read_csv("data/activity data/land_use_names.csv") %>%
+  mutate(lu_cat_code = str_sub(lu_cat, 0, 1))
 lu_conv
+
+table(lu_conv$lu_cat, lu_conv$lu_cat_code)
 
 # ## Check Collect Earth table structure
 # names(tt)
@@ -54,7 +57,7 @@ lu_cat_sub
 ## + REDD Activity
 ## + Year of deforestation
 ## + Year of afforestation
-ce_points <- tt %>%
+ce_points_init <- tt %>%
   select(
     id,
     group,
@@ -72,6 +75,12 @@ ce_points <- tt %>%
     location_x, 
     location_y
     ) %>%
+  mutate(
+    lu_sub_old = if_else(is.na(lu_change_year), lu_sub_new, lu_sub_old),
+    lu_cat_old_code = str_sub(lu_change, 0, 1)
+    )
+
+ce_points <- ce_points_init %>%
   left_join(lu_cat_sub, by = c("lu_sub_old" = "lu_sub")) %>%
   rename(lu_cat_old = lu_cat) %>%
   left_join(lu_cat, by = c("lu_cat_new" = "lu_cat")) %>%
@@ -87,6 +96,10 @@ ce_points <- tt %>%
       lu_cat_new == lu_cat_old                        ~ "No change",
       TRUE ~ "Other"
     ),
+  ) %>%
+  filter(
+    !(is.na(lu_change_year) & lu_cat_old != lu_cat_new)#,
+    #!(str_sub(lu_cat_old, 0, 1) != lu_cat_old_code)
   )
 
 ce_points
@@ -94,7 +107,7 @@ ce_points
 write_csv(ce_points, "results/CE_points_clean.csv")
 
 table(ce_points$lu_cat_old_fct, ce_points$lu_cat_new_fct)
-table(ce_points$lu_cat_old_fct, ce_points$lu_cat_new_fct, ad_point$lu_change_year)
+table(ce_points$lu_cat_old_fct, ce_points$lu_cat_new_fct, ce_points$lu_change_year)
 table(ce_points$lu_change)
 table(ce_points$redd_activity, ce_points$lu_change_year)
 

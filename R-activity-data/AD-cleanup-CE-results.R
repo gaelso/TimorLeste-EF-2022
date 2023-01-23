@@ -2,23 +2,32 @@
 library(tidyverse)
 library(googledrive)
 
-source("R-functions/download_ggdrive.R")
 
-drive_find(pattern = "Actity_Data", n_max = 100)
-drive_ls(path = "Actity_Data", type = "folder")
-path_to_files <- drive_ls(path = "Actity_Data/Export_results_all_versions", type = "csv")
+download_data <- FALSE
 
 
-unlink(list.files(path = "data/activity data/AD all", full.names = T))
-
-purrr::walk(seq_along(path_to_files$id), function(x){
+if (download_data) {
   
-  drive_download(file = path_to_files$id[x], 
-                 path = file.path("data/activity data/AD all", path_to_files$name[x]), 
-                 overwrite = T
-                 )
+  drive_find(pattern = "Actity_Data", n_max = 100)
+  drive_ls(path = "Actity_Data", type = "folder")
+  path_to_files <- drive_ls(path = "Actity_Data/Export_results_all_versions", type = "csv")
   
-})
+  
+  dir.create("data/activity data", showWarnings = F)
+  dir.create("data/activity data/AD all", showWarnings = F)
+  
+  unlink(list.files(path = "data/activity data/AD all", full.names = T))
+  
+  purrr::walk(seq_along(path_to_files$id), function(x){
+    
+    drive_download(file = path_to_files$id[x], 
+                   path = file.path("data/activity data/AD all", path_to_files$name[x]), 
+                   overwrite = T
+    )
+    
+  })
+  
+}
 
 
 ##
@@ -164,6 +173,7 @@ id_group_dup <- tt2 %>%
   distinct(id, group, .keep_all = T) %>%
   select(id, group, operator, plot_file, file_name, survey_date) %>%
   arrange(id)
+id_group_dup
 
 write_csv(id_group_dup, "results/id_group_duplicates.csv")
 
@@ -187,12 +197,46 @@ tt3 <- tt2 %>%
   #left_join(max_date, by = "id") %>%
   #filter(survey_date == max_date) %>%
   select(-survey_month, -survey_day, -duplicate_records) %>%
+  arrange(id, desc(survey_date)) %>%
   distinct(id, .keep_all = T)
 tt3 
 
 write_csv(tt3, paste0("results/sbae_2km_TL_clean_", Sys.Date(), ".csv"))
 
-## Check fro removed IDs
+tt3b <- tt3 %>%
+  mutate(
+    lu_cat_new = str_sub(land_use_category_label, 0, 1), 
+    lu_change_code = if_else(is.na(land_use_subcategory), paste0(lu_cat_new, lu_cat_new), land_use_subcategory),
+    lu_sub_new = if_else(is.na(land_use_subdivision_label), str_sub(lu_change_code, 2, 2), land_use_subdivision_label),
+    lu_sub_new = case_when(
+      lu_sub_new == "C"                        ~ "Cropland",
+      lu_sub_new == "O"                        ~ "Other Land",
+      lu_sub_new == "Moist high land forest"   ~ "Moist Highland forest",
+      lu_sub_new == "Infrastructure"           ~ "Settlements",
+      lu_sub_new == "Settlement"               ~ "Settlements",
+      lu_sub_new == "Lakes/Lagoons/Reservoirs" ~ "Wetlands",
+      lu_sub_new == "River"                    ~ "Wetlands",
+      lu_sub_new == "Mining"                   ~ "Other Land",
+      lu_sub_new == "Other bareland"           ~ "Other Land",
+      lu_sub_new == "Rocks"                    ~ "Other Land",
+      lu_sub_new == "Sand"                     ~ "Other Land",
+      TRUE ~ lu_sub_new
+      ),
+    lu_sub_new = str_to_title(lu_sub_new),
+    lu_change_year = if_else(!is.na(land_use_subdivision_year_of_change_label), land_use_subdivision_year_of_change_label, land_use_subcategory_year_of_change_label) 
+    )
+
+
+
+table(tt3$land_use_subdivision_label, useNA = "ifany")
+table(tt3$land_use_subcategory, useNA = "ifany")
+
+table(tt3b$lu_cat_new, useNA = "ifany")
+table(tt3b$lu_change_code, useNA = "ifany")
+table(tt3b$lu_sub_new, useNA = "ifany")
+table(tt3b$lu_change_year, useNA = "ifany")
+
+## Check removed IDs
 tt2 %>%
   filter(!is.na(id)) %>%
   pull(id) %>%

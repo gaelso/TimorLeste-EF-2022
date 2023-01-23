@@ -11,6 +11,7 @@ ggplot2::theme_set(theme_bw())
 # dggrid_table
 # 
 # write_csv(dggrid_table, "data/GIS/dggrid_resolutions.csv")
+
 dggrid_table <- read_csv("data/GIS/dggrid_resolutions.csv")
 dggrid_table
 dggrid_table %>% filter(res == 15) 
