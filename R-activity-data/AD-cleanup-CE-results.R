@@ -203,6 +203,149 @@ tt3
 
 write_csv(tt3, paste0("results/sbae_2km_TL_clean_", Sys.Date(), ".csv"))
 
+
+
+##
+## Check for more duplicates ###################################################
+##
+
+if (nrow(tt3) != 4215) {
+  
+  ## Check removed IDs
+  tt2 %>%
+    filter(!is.na(id)) %>%
+    pull(id) %>%
+    unique() %>%
+    length()
+  
+  ## Check for duplicates
+  test <- tt3 %>%
+    group_by(id) %>%
+    summarise(count = n()) 
+  
+  table(test$count)
+  
+  ## If still has duplicates
+  # vec <- test %>%
+  #   filter(count > 1) %>%
+  #   pull(id)
+  # 
+  # test2 <- tt3 %>%
+  #   filter(id %in% vec) %>%
+  #   arrange(id) %>%
+  #   select(id, group, operator, surveyor_name, file_name, plot_file)
+  # 
+  # tt2 %>%
+  #   filter(group == 5) %>%
+  #   select(operator, surveyor_name, file_name, plot_file) %>%
+  #   distinct()
+  
+  
+  ##
+  ## Compa with original grid
+  ##
+  
+  # sbae_original <- read_csv(list.files("data/activity data/Original grid", full.names = T))
+  # sbae_original
+  
+  ## Find operators for missing points
+  ce_files <- list.files(
+    path = "data/activity data/Original grid/TimorLeste_points_hex_2km_CE.csv_8_random/div_8", 
+    pattern = ".csv", 
+    full.names = T
+  )
+  
+  ce_group <- ce_files %>%
+    str_remove(".*_") %>%
+    str_remove("\\..*")
+  
+  ce_points <- map_dfr(ce_files, function(x){
+    
+    group <- x %>%
+      str_remove(".*_") %>%
+      str_remove("\\..*") %>%
+      as.numeric()
+    
+    tt <- read_csv(x, col_types = list(.default = "c")) %>%
+      mutate(
+        group      = group,
+        id         = as.numeric(id),
+        no         = 1:nrow(.),
+        no_ingroup = case_when(
+          no < 10   ~ paste0(group, "_000", no),
+          no < 100  ~ paste0(group, "_00", no),
+          no < 1000 ~ paste0(group, "_0", no),
+          TRUE      ~ paste0(group, "_", no)
+        )
+      )
+    
+  }) %>%
+    select(id, group, no, no_ingroup, everything()) %>%
+    arrange(id)
+  
+  ce_points
+  
+  test <- ce_points %>%
+    mutate(no = 1:nrow(.)) %>%
+    select(no, everything())
+  
+  ## Check problems with group
+  test <- ce_points %>%
+    filter(id %in% unique(id_group_dup$id)) 
+  
+  
+  tt5 <- tt3 %>%
+    select(id, operator, surveyor_name) %>%
+    full_join(ce_points, by = "id") %>%
+    arrange(id)
+  tt5
+  
+  table(tt5$operator, tt5$group, useNA= "ifany")
+  table(tt5$surveyor_name, tt5$group, useNA= "ifany")
+  
+  list_missing_ids <- tt5 %>%
+    filter(is.na(surveyor_name)) %>%
+    select(-operator, -surveyor_name) %>%
+    select(group, no, everything()) %>%
+    arrange(group, no)
+  
+  list_missing_ids
+  
+  write_csv(list_missing_ids, "results/list_missing_ids.csv")
+  
+}
+
+
+##
+## Solve change spread across multiple columns #################################
+##
+
+lu_fct <- tibble(
+  lu_name = c(
+    "Moist Highland Forest",
+    "Moist Lowland Forest",
+    "Dry Lowland Forest", 
+    "Montane Forest",
+    "Coastal Forest",
+    "Mangroves",
+    "Forest Plantation",
+    "Grassland",
+    "Shrubs",
+    "Other Wooded Land",
+    "Cropland",
+    "Settlements",
+    "Wetlands",
+    "Other Land"
+  ),
+  lu_code = c("FMH", "FML", "FDL", "FM", "FC", "MF", "FP", "G", "Sh", "OWL", "C", "Se", "W", "O"),
+  lu_rank = 1:14,
+  lu_name_fct = forcats::fct_reorder(lu_name, lu_rank),
+  lu_code_fct = forcats::fct_reorder(lu_code, lu_rank)
+)
+lu_fct
+
+
+
 tt3b <- tt3 %>%
   mutate(
     lu_cat_new = str_sub(land_use_category_label, 0, 1), 
@@ -221,14 +364,15 @@ tt3b <- tt3 %>%
       lu_sub_new == "Rocks"                    ~ "Other Land",
       lu_sub_new == "Sand"                     ~ "Other Land",
       TRUE ~ lu_sub_new
-      ),
+    ),
     lu_sub_new = str_to_title(lu_sub_new),
     lu_change_year = if_else(!is.na(land_use_subdivision_year_of_change_label), land_use_subdivision_year_of_change_label, land_use_subcategory_year_of_change_label),
+    lu_change_year = as.numeric(lu_change_year),
     lu_sub_old = case_when(
-    is.na(lu_change_year) ~ lu_sub_new,
-    is.na(land_use_initial_subdivision_label) ~ str_sub(lu_change_code, 0, 1),
-    TRUE ~ land_use_initial_subdivision_label
-      ),
+      is.na(lu_change_year) ~ lu_sub_new,
+      is.na(land_use_initial_subdivision_label) ~ str_sub(lu_change_code, 0, 1),
+      TRUE ~ land_use_initial_subdivision_label
+    ),
     lu_sub_old = case_when(
       lu_sub_old == "F" ~ lu_sub_new, ## Error change since no initial LU reported 
       lu_sub_old == "G" ~ lu_sub_new, ## Error change since no initial LU reported
@@ -245,148 +389,101 @@ tt3b <- tt3 %>%
       lu_sub_old == "Rocks"                    ~ "Other Land",
       lu_sub_old == "Sand"                     ~ "Other Land",
       TRUE ~ lu_sub_old
-      ),
-    lu_sub_old = str_to_title(lu_sub_old)
-    )
+    ),
+    lu_sub_old = str_to_title(lu_sub_old),
+    lu_sub_second = if_else(is.na(second_lu_subdivision_label), second_lu_conversion_label, second_lu_subdivision_label),
+    lu_sub_second = case_when(
+      lu_sub_second == "Moist high land forest"   ~ "Moist Highland forest",
+      lu_sub_second == "Infrastructure"           ~ "Settlements",
+      lu_sub_second == "Settlement"               ~ "Settlements",
+      lu_sub_second == "Lakes/Lagoons/Reservoirs" ~ "Wetlands",
+      lu_sub_second == "River"                    ~ "Wetlands",
+      lu_sub_second == "Mining"                   ~ "Other Land",
+      lu_sub_second == "Other bareland"           ~ "Other Land",
+      lu_sub_second == "Rocks"                    ~ "Other Land",
+      lu_sub_second == "Sand"                     ~ "Other Land",
+      TRUE ~ lu_sub_second
+    ),
+    lu_sub_second = str_to_title(lu_sub_second),
+    lu_second_year = as.numeric(second_lu_conversion_year_label)
+  ) %>%
+  left_join(lu_fct, by = c("lu_sub_new" = "lu_name")) %>%
+  left_join(lu_fct, by = c("lu_sub_old" = "lu_name"), suffix = c("_new", "_old")) %>%
+  left_join(lu_fct %>% rename_with(~ paste0(.x, "_second")), by = c("lu_sub_second" = "lu_name_second"))
 
 
-table(tt3$land_use_subdivision_label, useNA = "ifany")
-table(tt3$land_use_subcategory, tt3$land_use_subdivision_label, useNA = "ifany")
-table(tt3$land_use_subcategory, useNA = "ifany")
-
-table(tt3b$lu_cat_new, useNA = "ifany")
-table(tt3b$lu_change_code, useNA = "ifany")
-table(tt3b$lu_sub_new, useNA = "ifany")
-table(tt3b$lu_change_year, useNA = "ifany")
-
-table(tt3b$lu_sub_old, useNA = "ifany")
-
-## Check removed IDs
-tt2 %>%
-  filter(!is.na(id)) %>%
-  pull(id) %>%
-  unique() %>%
-  length()
-
-## Check for duplicates
-test <- tt3 %>%
-  group_by(id) %>%
-  summarise(count = n()) 
-
-table(test$count)
-
-## If still has duplicates
-# vec <- test %>%
-#   filter(count > 1) %>%
-#   pull(id)
-# 
-# test2 <- tt3 %>%
-#   filter(id %in% vec) %>%
-#   arrange(id) %>%
-#   select(id, group, operator, surveyor_name, file_name, plot_file)
-# 
-# tt2 %>%
-#   filter(group == 5) %>%
-#   select(operator, surveyor_name, file_name, plot_file) %>%
-#   distinct()
-
-
-##
-## Compa with original grid
-##
-
-# sbae_original <- read_csv(list.files("data/activity data/Original grid", full.names = T))
-# sbae_original
-
-## Find operators for missing points
-ce_files <- list.files(
-  path = "data/activity data/Original grid/TimorLeste_points_hex_2km_CE.csv_8_random/div_8", 
-  pattern = ".csv", 
-  full.names = T
+## Check if afforested land get deforested again
+tt3_redd <- tt3b %>%
+  mutate(
+    redd_activity = case_when(
+      lu_rank_old >= 8 & lu_rank_new < 8 ~ "AF",
+      lu_rank_old < 8 & lu_rank_new >=8 ~ "DF",
+      lu_rank_old >= 8 & lu_rank_new >=8 ~ "stable NF",
+      TRUE ~ NA_character_
+    ),
+    redd_activity_second = case_when(
+      lu_rank_second >= 8 & lu_rank_new < 8 ~ "AF",
+      lu_rank_second < 8 & lu_rank_new >=8 ~ "DF",
+      lu_rank_second >= 8 & lu_rank_new >=8 ~ "stable NF",
+      TRUE ~ NA_character_
+    ),
   )
 
-ce_group <- ce_files %>%
-  str_remove(".*_") %>%
-  str_remove("\\..*")
+table(tt3_redd$redd_activity, tt3_redd$redd_activity_second)
 
-ce_points <- map_dfr(ce_files, function(x){
-  
-  group <- x %>%
-    str_remove(".*_") %>%
-    str_remove("\\..*") %>%
-    as.numeric()
-  
-  tt <- read_csv(x, col_types = list(.default = "c")) %>%
-    mutate(
-      group      = group,
-      id         = as.numeric(id),
-      no         = 1:nrow(.),
-      no_ingroup = case_when(
-        no < 10   ~ paste0(group, "_000", no),
-        no < 100  ~ paste0(group, "_00", no),
-        no < 1000 ~ paste0(group, "_0", no),
-        TRUE      ~ paste0(group, "_", no)
-        )
-      )
-  
-}) %>%
-  select(id, group, no, no_ingroup, everything()) %>%
-  arrange(id)
-
-ce_points
-
-test <- ce_points %>%
-  mutate(no = 1:nrow(.)) %>%
-  select(no, everything())
-
-## Check problems with group
-test <- ce_points %>%
-  filter(id %in% unique(id_group_dup$id)) 
+test <- tt3_redd %>% 
+  filter(redd_activity == "AF")
 
 
-tt5 <- tt3 %>%
-  select(id, operator, surveyor_name) %>%
-  full_join(ce_points, by = "id") %>%
-  arrange(id)
-tt5
+redd_registry <- tt3_redd %>%
+  filter(lu_change_year >= 2017 | lu_second_year >= 2017) %>%
+  filter(redd_activity == "AF" | redd_activity_second == "AF") %>%
+  group_by(lu_change_year, lu_code_fct_new) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  pivot_longer()
 
-table(tt5$operator, tt5$group, useNA= "ifany")
-table(tt5$surveyor_name, tt5$group, useNA= "ifany")
+redd_registry
 
-list_missing_ids <- tt5 %>%
-  filter(is.na(surveyor_name)) %>%
-  select(-operator, -surveyor_name) %>%
-  select(group, no, everything()) %>%
-  arrange(group, no)
+write_csv(redd_registry, "results/REDD_AF_registry.csv")
 
-list_missing_ids
-
-write_csv(list_missing_ids, "results/list_missing_ids.csv")
-
-# ## IF PLOTS STILL MISSING
-# ## Check again if points in source files
-# test <- tt2 %>% 
-#   filter(id %in% list_missing_ids$id) %>%
-#   arrange(id) %>%
-#   distinct(id, .keep_all = TRUE)
+# table(tt3$land_use_subdivision_label, useNA = "ifany")
+# table(tt3$land_use_subcategory, tt3$land_use_subdivision_label, useNA = "ifany")
+# table(tt3$land_use_subcategory, useNA = "ifany")
 # 
-# write_csv(test, "results/missing ids found in orginal data.csv")
+# table(tt3b$lu_cat_new, useNA = "ifany")
+# table(tt3b$lu_change_code, useNA = "ifany")
+# table(tt3b$lu_sub_new, useNA = "ifany")
+# table(tt3b$lu_change_year, useNA = "ifany")
 # 
-# ## Check again what point from which group
-# tt$plot_file %>% 
-#   str_remove(".*_") %>%
-#   str_remove(" \\(1\\).csv") %>%
-#   str_remove(".csv")
-#   
-# tt$plot_file %>% str_detect("Aileu")
+# table(tt3b$lu_sub_old, useNA = "ifany")
 # 
-# list.files(path = file_path, pattern = "Aileu", recursive = T, full.names = T)
+# table(tt3b$lu_sub_new, useNA = "ifany")
 # 
-# test <- tt %>%
-#   mutate(check_file = if_else(str_detect(plot_file, "Aileu"), 1, 0))
-# 
-# table(test$check_file)
-# 
-# test2 <- test %>% filter(check_file == 1)
-# write_csv(test2, "results/check_plot_file_errors.csv")
+# table(tt3b$lu_sub_second, useNA = "ifany")
+# table(tt3b$lu_sub_second, tt3b$lu_code_fct_second, useNA = "ifany")
 
+# tt3c <- tt3b %>%
+#   select(id, group, surveyor_name, starts_with("lu_"))
+
+tt3_clean <- tt3b %>%
+  mutate(
+    lu_init      = lu_code_old,
+    lu_init_id   = lu_rank_old,
+    lu_new1      = if_else(is.na(lu_second_year), lu_code_new, lu_code_second),
+    lu_new1_id   = if_else(is.na(lu_second_year), lu_rank_new, lu_rank_second),
+    lu_new1_year = if_else(is.na(lu_second_year), lu_change_year, lu_second_year),
+    lu_new2      = if_else(is.na(lu_second_year), NA_character_, lu_code_new),
+    lu_new2_id   = if_else(is.na(lu_second_year), NA_integer_, lu_rank_new),
+    lu_new2_year = if_else(is.na(lu_second_year), NA_real_, lu_change_year)
+  ) %>%
+  select(
+    id, group, surveyor_name, plot_file, file_name, 
+    lu_init, lu_init_id,
+    lu_new1, lu_new1_id, lu_new1_year, 
+    lu_new2, lu_new2_id, lu_new2_year
+  )
+
+tt3_ad <- tt3_clean %>% 
+  filter(lu_new1_year %in% 2017:2021 | lu_new2_year %in% 2017:2021)
+
+write_csv(tt3_ad, paste0("results/Activity_data_points", Sys.Date(), ".csv"))
