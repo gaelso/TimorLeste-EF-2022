@@ -436,11 +436,11 @@ test <- tt3_redd %>%
 
 
 redd_registry <- tt3_redd %>%
-  filter(lu_change_year >= 2017 | lu_second_year >= 2017) %>%
+  filter(lu_change_year %in% 2017:2021 | lu_second_year %in% 2017:2021) %>%
   filter(redd_activity == "AF" | redd_activity_second == "AF") %>%
   group_by(lu_change_year, lu_code_fct_new) %>%
   summarise(count = n(), .groups = "drop") %>%
-  pivot_longer()
+  pivot_wider(names_from = lu_change_year, values_from = count)
 
 redd_registry
 
