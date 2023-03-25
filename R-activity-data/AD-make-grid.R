@@ -12,13 +12,13 @@ ggplot2::theme_set(theme_bw())
 # 
 # write_csv(dggrid_table, "data/GIS/dggrid_resolutions.csv")
 
-dggrid_table <- read_csv("data/GIS/dggrid_resolutions.csv")
-dggrid_table
-dggrid_table %>% filter(res == 15) 
-dggrid_table %>% filter(res == 15) %>% pull(area_km) 
+dg_table <- read_csv("data/GIS/dggrid_res_ISEA3H.csv")
+dg_table
+dg_table %>% filter(res == 15) 
+dg_table %>% filter(res == 15) %>% pull(area_km2) 
 
 ## Load AOI
-sf_aoi <- st_read("data/GIS/admin/TimorLeste.shp") 
+sf_aoi <- st_read("data/GIS/TimorLeste.geoJSON") %>% st_transform(4326)
 sf_aoi_metric <- st_transform(sf_aoi, "ESRI:54017")
 
 ## Create a grid setup
@@ -33,33 +33,99 @@ dg_init <- dggridR::dgconstruct(res = 15, metric = TRUE)
 ## https://github.com/r-barnes/dggridR/blob/master/R/dggridR.R
 ##
 
+tt <- dginfo(dgconstruct(res = 11))
+str(dginfo(dgconstruct(res = 11)))
+str(tt)
+
+dgverify()
+dginfo(dggs)
+
+dggs = dgconstruct(res = 11)
+dggetres(dggs)
+r = 11
+ress
+sapply(ress, function(r) dggridR:::GridStat_cellDistKM(dggs[['projection']], dggs[['topology']], dggs[['aperture']], r))
+
+## Implementation
+dg_res <- 11:15
+
+
+dg_list <- map(dggrid_res, function(x){
+  
+  dggridR::dgconstruct(res = x, metric = TRUE)
+  
+})
+
+names(dg_list) <- paste0("grid", dg_res) 
+dg_list
+
+dg_list$grid11
+
+sf_dg <- map(dg_res, function(x){
+  
+  i <- x - min(dg_res) + 1
+  
+  dist <- dggridR:::GridStat_cellDistKM(dggs[['projection']], dggs[['topology']], dggs[['aperture']], x)
+  
+  dist_deg <- round(dist / 111 * 0.9, 4) # calc degree with some margin of error 
+  
+  sf_grid <- dgrectgrid(dggrid_list[[i]], minlat=-10, minlon=124,maxlat=-8, maxlon=128, cellsize = dist_deg)
+  
+  grid_seqnum <- sf_grid %>% st_intersection(sf_aoi) %>% pull(seqnum)
+  
+  sf_grid_clip <- sf_grid %>% filter(seqnum %in% grid_seqnum)
+  
+})
+
+names(sf_dg) <- paste0("grid", dg_res)
+
+ggplot(sf_aoi) +
+  geom_sf(fill = 'grey90', color = NA) +
+  geom_sf(data = sf_dg$grid11, fill = NA, color = viridis::viridis(6)[1]) +
+  geom_sf(data = sf_dg$grid12, fill = NA, color = viridis::viridis(6)[2]) +
+  geom_sf(data = sf_dg$grid13, fill = NA, color = viridis::viridis(6)[3]) +
+  geom_sf(data = sf_dg$grid14, fill = NA, color = viridis::viridis(6)[4]) +
+  geom_sf(data = sf_dg$grid15, fill = NA, color = viridis::viridis(6)[5]) +
+  coord_sf(xlim = c(125, 125.5), ylim = c(-9.5, -9), expand = FALSE)
+
+  
+ggplot(sf_aoi) +
+  geom_sf(fill = 'grey90', color = NA) +
+  geom_sf(data = sf_dg$grid15, fill = NA, color = viridis::viridis(6)[5]) +
+  geom_sf(data = sf_dg$grid14, fill = NA, color = viridis::viridis(6)[4]) +
+  geom_sf(data = sf_dg$grid13, fill = NA, color = viridis::viridis(6)[3]) +
+  geom_sf(data = sf_dg$grid12, fill = NA, color = viridis::viridis(6)[2]) +
+  geom_sf(data = sf_dg$grid11, fill = NA, color = viridis::viridis(6)[1]) +
+  coord_sf(xlim = c(125, 125.5), ylim = c(-9.5, -9), expand = FALSE)
+
+
 ## Create points matching the grid resolution
-# dg_spacing <- dggrid_table %>%
-#   filter(res == dg_init$res) %>%
-#   mutate(spacing_m = spacing_km * 1000) %>%
-#   pull(spacing_m)
-# 
-# dg_approx_points <- sf::st_make_grid(sf_aoi_metric, cellsize = c(dg_spacing, dg_spacing), square = F, what = "centers") %>%
-#   sf::st_intersection(sf_aoi_metric) %>%
-#   st_transform(4326)
-# 
-# ggplot() + 
-#   geom_sf(data = dg_approx_points, size = 0.2) +
-#   geom_sf(data = sf_aoi_metric, fill = NA, col= "red") +
-#   coord_sf(crs = "ESRI:54017")
-# 
-# ## Convert the points to SEQNUM ids for identifying which grid cells to keep
-# dg_seqnum <- dgGEO_to_SEQNUM(dg_init, st_coordinates(dg_approx_points)[,1], st_coordinates(dg_approx_points)[,2])
-# 
-# ## get matching grid cells
-# dg_grid <- dgcellstogrid(dg_init, dg_seqnum$seqnum)
-# dg_grid_metric <- st_transform(dg_grid, "ESRI:54017")
-# 
-# ## Check
-# ggplot() + 
-#   geom_sf(data = dg_grid_metric, fill = NA) +
-#   geom_sf(data = sf_aoi_metric, fill = NA, col= "red")
-# 
+dg_spacing <- dggrid_table %>%
+  filter(res == dg_init$res) %>%
+  mutate(spacing_m = spacing_km * 1000) %>%
+  pull(spacing_m)
+
+dg_approx_points <- sf::st_make_grid(sf_aoi_metric, cellsize = c(dg_spacing, dg_spacing), square = F, what = "centers") %>%
+  sf::st_intersection(sf_aoi_metric) %>%
+  st_transform(4326)
+
+ggplot() +
+  geom_sf(data = dg_approx_points, size = 0.2) +
+  geom_sf(data = sf_aoi_metric, fill = NA, col= "red") +
+  coord_sf(crs = "ESRI:54017")
+
+## Convert the points to SEQNUM ids for identifying which grid cells to keep
+dg_seqnum <- dgGEO_to_SEQNUM(dg_init, st_coordinates(dg_approx_points)[,1], st_coordinates(dg_approx_points)[,2])
+
+## get matching grid cells
+dg_grid <- dgcellstogrid(dg_init, dg_seqnum$seqnum)
+dg_grid_metric <- st_transform(dg_grid, "ESRI:54017")
+
+## Check
+ggplot() +
+  geom_sf(data = dg_grid_metric, fill = NA) +
+  geom_sf(data = sf_aoi_metric, fill = NA, col= "red")
+
 
 
 ##
