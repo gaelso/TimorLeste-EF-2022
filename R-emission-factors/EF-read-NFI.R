@@ -149,6 +149,14 @@ ggplot(tree) +
   geom_point(aes(x = tree_dbh, y = tree_height_corr, color = plot_no), size = 2) +
   labs(x = "Tree DBH (cm)", y = "Tree height (m)", color = "Plot ID")
 
+tree %>%
+  filter(tree_height_model != tree_height_corr) %>%
+  ggplot() +
+  geom_point(aes(x = tree_dbh, y = tree_height_corr, color = plot_no)) +
+  geom_line(aes(x = tree_dbh, y = tree_height_model, color = plot_no)) +
+  labs(x = "Tree DBH (cm)", y = "Tree height (m)", color = "Plot ID")
+
+
 
 ggplot(tree) +
   geom_point(aes(x = tree_dbh, y = tree_agb_chave, color = plot_no))
