@@ -33,7 +33,7 @@ gwd_species <- gwd %>%
 lu_conv <- read_csv("data/activity data/land_use_names.csv")
 lu_conv
 
-sf_country <- st_read("data/GIS/TimorLeste.geoJSON") 
+sf_country <- st_read("data/spatial/TimorLeste.geoJSON") 
 
 ## Load E raster file Download E.nc from: 
 ## http://chave.ups-tlse.fr/pantropical_allometry/E.nc.zip
