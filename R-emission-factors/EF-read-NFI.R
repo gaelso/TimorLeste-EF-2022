@@ -12,7 +12,7 @@ ggplot2::theme_set(ggplot2::theme_bw())
 ## Load data ################################################################
 ##
 
-path_nfi_data <- "data/NFItest/NFI-test.xlsx"
+path_nfi_data <- "data/NFItest/TL_NFI_DATA_202300601.xlsx"
 
 readxl::excel_sheets(path_nfi_data)
 
@@ -22,7 +22,7 @@ plot_init      <- readxl::read_xlsx(path_nfi_data, sheet = "plot")
 subplot_init   <- readxl::read_xlsx(path_nfi_data, sheet = "subplot")
 lf_init        <- readxl::read_xlsx(path_nfi_data, sheet = "land_feature")
 lf_object_init <- readxl::read_xlsx(path_nfi_data, sheet = "land_feature_object")
-species_list   <- readxl::read_xlsx(path_nfi_data, sheet = "SPECIES_LIST")
+# species_list   <- readxl::read_xlsx(path_nfi_data, sheet = "SPECIES_LIST")
 
 gwd <- read_csv("data/gwd.csv")
 
@@ -30,17 +30,19 @@ gwd_species <- gwd %>%
   group_by(Binomial) %>%
   summarise(wd_mean = mean(`Wood density (g/cm^3), oven dry mass/fresh volume`))
 
-lu_conv <- read_csv("data/activity data/land_use_names.csv")
-lu_conv
+plot_corr <- read_csv("results/nfi_plot_lc.csv")
 
-sf_country <- st_read("data/spatial/TimorLeste.geoJSON") 
+# lu_conv <- read_csv("data/activity data/land_use_names.csv")
+# lu_conv
 
+# sf_country <- st_read("data/spatial/TimorLeste.geoJSON") 
+ 
 ## Load E raster file Download E.nc from: 
 ## http://chave.ups-tlse.fr/pantropical_allometry/E.nc.zip
 rs_envir_stress <- terra::rast("data/GIS/E.nc")
 
 ## Load plot AD info
-ad_info <- read_csv("data/NFItest/AD_info.csv")
+# ad_info <- read_csv("data/NFItest/AD_info.csv")
 
 ##
 ## Checks ###################################################################
@@ -63,31 +65,29 @@ ad_info <- read_csv("data/NFItest/AD_info.csv")
 ## Update plot level data ###################################################
 ##
 
-
-
 ## Assign land cover based on AD categories
 plot <- plot_init %>%
   mutate(
     plot_center_GPS_S = -as.numeric(plot_center_GPS_S),
     plot_center_GPS_E = as.numeric(plot_center_GPS_E),
   ) %>%
-  left_join(ad_info, by = "plot_no") %>%
-  filter(!is.na(plot_center_GPS_S))
+  left_join(plot_corr, by = "plot_no")
 
-plot$lf_land_cover
-plot$corr_land_cover
-plot$corr_climate
+# plot$lf_landcover
+# plot$corr_land_cover
+# plot$corr_climate
 
 
 sf_plot <- plot %>%
-  select(plot_no, corr_land_cover, ad_land_cover, nfi_land_cover, plot_center_GPS_E, plot_center_GPS_S) %>%
+  filter(!is.na(plot_center_GPS_S)) %>%
+  select(plot_no, lf_landcover, ad_landcover, nfi_landcover, plot_center_GPS_E, plot_center_GPS_S) %>%
   st_as_sf(coords = c("plot_center_GPS_E", "plot_center_GPS_S"), crs = 4326)
 
 #st_write(sf_plot, "results/NFItest.geoJSON")
 
-ggplot() +
-  geom_sf(data = sf_plot) +
-  geom_sf(data = sf_country, fill = NA)
+# ggplot() +
+#   geom_sf(data = sf_plot) +
+#   geom_sf(data = sf_country, fill = NA)
 
 
 ## Crop E to Lao boundaries
@@ -95,6 +95,21 @@ sf_plot$envir_stress <- terra::extract(rs_envir_stress, vect(sf_plot))$layer
 
 ## Check
 sf_plot
+
+## Manual correction of missing E based on nearest plot
+plot_envir_stress <- sf_plot %>%
+  as_tibble() %>%
+  select(plot_no, envir_stress) %>%
+  mutate(
+    envir_stress = case_when(
+      plot_no == "Z10T03" ~ 0.30,
+      TRUE ~ envir_stress
+    )
+  ) %>%
+  bind_rows(
+    list(plot_no = "Z03T04alt", envir_stress = 0.12)
+  )
+  
 
 ##
 ## Update tree level data ###################################################
@@ -105,8 +120,11 @@ sf_plot
 #   mutate(species = if_else(species == "NA", NA_character_, species)) %>%
 #   left_join(gwd_species, by = c("species" = "Binomial"))
 
+
+## Simplification below
 tree <- tree_init %>%
-  left_join(as_tibble(sf_plot), by = "plot_no") %>%
+  filter(!is.na(tree_dbh)) %>%
+  left_join(plot_envir_stress, by = "plot_no") %>%
   left_join(gwd_species, by = c("tree_species_scientific" = "Binomial")) %>%
   mutate(
     tree_wd = if_else(!is.na(wd_mean), wd_mean, 0.57),
@@ -127,8 +145,7 @@ tree <- tree_init %>%
       TRUE          ~ 25^2 * pi
       ),
     scale_factor = 10000 / subplot_size
-  ) %>%
-  filter(!is.na(tree_dbh))
+  )
 
 
 ## Checks
@@ -156,11 +173,11 @@ tree %>%
   geom_line(aes(x = tree_dbh, y = tree_height_model, color = plot_no)) +
   labs(x = "Tree DBH (cm)", y = "Tree height (m)", color = "Plot ID")
 
-
-
 ggplot(tree) +
   geom_point(aes(x = tree_dbh, y = tree_agb_chave, color = plot_no))
 
+test <- tree %>% filter(is.na(tree_agb_chave))
+test
 
 ## 
 ## Calculate plot and forest type AGB #######################################
@@ -190,10 +207,10 @@ plot_agb <- subplot_agb %>%
   left_join(plot, by = "plot_no") %>%
   mutate(
     plot_bgb_ha = case_when(
-      corr_climate == "Moist" & plot_agb_ha >= 125 ~ 0.323 * plot_agb_ha, ## IPCC 2019: https://www.ipcc-nggip.iges.or.jp/public/2019rf/pdf/4_Volume4/19R_V4_Ch04_Forest%20Land.pdf
-      corr_climate == "Moist" & plot_agb_ha <  125 ~ 0.246 * plot_agb_ha, 
-      corr_climate == "Dry" & plot_agb_ha >= 125   ~ 0.440 * plot_agb_ha,
-      corr_climate == "Dry" & plot_agb_ha <  125   ~ 0.379 * plot_agb_ha,
+      target_climate == "Moist" & plot_agb_ha >= 125 ~ 0.323 * plot_agb_ha, ## IPCC 2019: https://www.ipcc-nggip.iges.or.jp/public/2019rf/pdf/4_Volume4/19R_V4_Ch04_Forest%20Land.pdf
+      target_climate == "Moist" & plot_agb_ha <  125 ~ 0.246 * plot_agb_ha, 
+      target_climate == "Dry" & plot_agb_ha >= 125   ~ 0.440 * plot_agb_ha,
+      target_climate == "Dry" & plot_agb_ha <  125   ~ 0.379 * plot_agb_ha,
     ),
     plot_carbon_ha = (plot_agb_ha + plot_bgb_ha) * 0.47
   )
@@ -202,7 +219,7 @@ plot_agb
 
 
 ftype_agb <- plot_agb %>%
-  group_by(corr_land_cover) %>%
+  group_by(nfi_landcover) %>%
   summarise(
     n_plot     = n(),
     agb_all    = round(mean(plot_agb_ha), 3),
@@ -217,8 +234,57 @@ ftype_agb <- plot_agb %>%
   )
 ftype_agb
 
+
+ftype_agb2 <- plot_agb %>%
+  group_by(lf_landcover) %>%
+  summarise(
+    n_plot     = n(),
+    agb_all    = round(mean(plot_agb_ha), 3),
+    bgb_all    = round(mean(plot_bgb_ha), 3),
+    carbon_tot = round(mean(plot_carbon_ha), 3),
+    sd_carbon  = sd(plot_carbon_ha),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    ci      = sd_carbon / sqrt(n_plot) * round(qt(0.975, n_plot-1), 2),
+    ci_perc = round(ci / carbon_tot * 100, 0)
+  )
+ftype_agb2
+
+ftype_agb3 <- plot_agb %>%
+  group_by(ad_landcover) %>%
+  summarise(
+    n_plot     = n(),
+    agb_all    = round(mean(plot_agb_ha), 3),
+    bgb_all    = round(mean(plot_bgb_ha), 3),
+    carbon_tot = round(mean(plot_carbon_ha), 3),
+    sd_carbon  = sd(plot_carbon_ha),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    ci      = sd_carbon / sqrt(n_plot) * round(qt(0.975, n_plot-1), 2),
+    ci_perc = round(ci / carbon_tot * 100, 0)
+  )
+ftype_agb3
+
+ftype_agb4 <- plot_agb %>%
+  group_by(zone, lf_landcover) %>%
+  summarise(
+    n_plot     = n(),
+    agb_all    = round(mean(plot_agb_ha), 3),
+    bgb_all    = round(mean(plot_bgb_ha), 3),
+    carbon_tot = round(mean(plot_carbon_ha), 3),
+    sd_carbon  = sd(plot_carbon_ha),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    ci      = sd_carbon / sqrt(n_plot) * round(qt(0.975, n_plot-1), 2),
+    ci_perc = round(ci / carbon_tot * 100, 0)
+  )
+ftype_agb4
+
 climate_agb <- plot_agb %>%
-  group_by(corr_climate) %>%
+  group_by(target_climate) %>%
   summarise(
     n_plot     = n(),
     agb_all    = round(mean(plot_agb_ha), 3),
