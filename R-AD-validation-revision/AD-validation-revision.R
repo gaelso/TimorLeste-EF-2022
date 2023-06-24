@@ -2,7 +2,7 @@
 library(tidyverse)
 library(googledrive)
 
-googledrive::drive_auth()
+# googledrive::drive_auth()
 
 path_data <- "data/validation-revision"
 dir.create(path_data, showWarnings = FALSE)
@@ -315,5 +315,25 @@ ce_AD_sbae_valid %>%
 
 
 ## 
+## Error correction of the AD ##################################################
+##
+
+## Many points with change in 2000
+table(ce_AD$lu_change_year_AD)
+
+test_id <- ce_results %>% 
+  filter(land_use_subcategory_year_of_change_label == 2000) %>%
+  filter(!(id %in% valid_new_AF$id)) %>% 
+  pull(id)
+
+## Assigning plots with change in 2000 to be revisited
+ce_grid %>% filter(id %in% test_id) %>% write_csv(file.path(path_res, "AD-revision-change2000_notinvalid.csv"))
 
 
+## 4 points with no info on land use change
+test_id <- ce_results %>%
+  filter(is.na(land_use_subcategory)) %>%
+  pull(id)
+
+## Assigning plots with change not recorded
+ce_grid %>% filter(id %in% test_id) %>% write_csv(file.path(path_res, "AD-revision-change-missing.csv"))
